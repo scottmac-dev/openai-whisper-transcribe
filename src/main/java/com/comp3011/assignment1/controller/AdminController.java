@@ -4,10 +4,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Controller for handling STT transcription via OpenAI API
+ * Controller for admin system information
+ * 
  */
 @RestController
-@RequestMapping("/api/v1/transcribe")
-public class TransciptionController {
+@RequestMapping("/api/v1/admin")
+public class AdminController {
 
 }
