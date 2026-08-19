@@ -1,9 +1,12 @@
 package com.comp3011.assignment1.providers;
 
+import java.io.IOException;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.comp3011.assignment1.responses.OpenAiResponse;
 
@@ -23,7 +26,7 @@ public class OpenAiProvider {
     private static final String MODEL = "whisper-1";
     
     // Size limit for OpenAI audio file upload (25 MB).
-    protected static final long MAX_FILE_SIZE = 25L * 1024 * 1024;
+    public static final long MAX_FILE_SIZE = 25L * 1024 * 1024;
     
     // Springboot inbuilt REST API client
     private final RestClient restClient;
@@ -37,7 +40,10 @@ public class OpenAiProvider {
     }
     
     // TODO
-    public OpenAiResponse transcribe() {}
+    public OpenAiResponse transcribe(MultipartFile audio) throws IOException {
+    	throw new IOException("TODO");
+    	
+    }
 
 
 }
