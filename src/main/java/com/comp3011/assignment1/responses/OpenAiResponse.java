@@ -55,4 +55,26 @@ public record OpenAiResponse(
         double duration,
         String text,
         List<OpenAiSegment> segments
-) {}
+) {
+	/**
+	 * Canned response used when no real OpenAI API key is configured
+	 */
+	public static OpenAiResponse stub() {
+		return new OpenAiResponse(
+				"transcribe",
+				"english",
+				7.4,
+				" This is a stubbed transcription. Set OPENAI_API_KEY to call the real Whisper API.",
+				List.of(
+						new OpenAiSegment(0, 0, 0.0, 3.6,
+								" This is a stubbed transcription.",
+								new int[] { 50364, 639, 307, 257 },
+								0.0, -0.24, 0.61, 0.008),
+						new OpenAiSegment(1, 0, 3.6, 7.4,
+								" Set OPENAI_API_KEY to call the real Whisper API.",
+								new int[] { 8928, 46, 22940, 40, 62 },
+								0.0, -0.19, 0.72, 0.004)
+				)
+		);
+	}
+}
