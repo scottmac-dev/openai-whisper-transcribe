@@ -2,13 +2,13 @@ package com.comp3011.assignment1.providers;
 
 import java.io.IOException;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.MediaType;
-import org.springframework.http.client.MultipartBodyBuilder;
 import org.springframework.stereotype.Component;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -81,17 +81,25 @@ public class OpenAiProvider {
     		return OpenAiResponse.stub();
     	}
     	
+    	// Convert file to byte array resource for embedding into request body
+        ByteArrayResource resource = new ByteArrayResource(audio.getBytes()) {
+            @Override
+            public String getFilename() {
+                return audio.getOriginalFilename();
+            }
+        };
+    	
     	// Build API request to whisper endpoint
-        MultipartBodyBuilder body = new MultipartBodyBuilder();
-        body.part("file", audio.getResource())
-            .filename(audio.getOriginalFilename());
-        body.part("model", MODEL);
-        body.part("response_format", "verbose_json");
+        MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+        
+        body.add("file", resource);
+        body.add("model", MODEL);
+        body.add("response_format", "verbose_json");
         
         // POST to endpoint, extract return type into response class
         return restClient.post()
                 .contentType(MediaType.MULTIPART_FORM_DATA)
-                .body(body.build())
+                .body(body)
                 .retrieve()
                 .body(OpenAiResponse.class);
     }
