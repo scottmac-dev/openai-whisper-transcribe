@@ -2,6 +2,8 @@ package com.comp3011.assignment1.providers;
 
 import java.io.IOException;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.MediaType;
@@ -17,7 +19,8 @@ import com.comp3011.assignment1.responses.OpenAiResponse;
  *
  * Uses the /audio/transcriptions endpoint with verbose_json for rich meta data return.
  *
- * Requires $OPENAI_API_KEY environment variable provided at runtime. 
+ * Requires $OPENAI_API_KEY environment variable provided at runtime. Without it
+ * the key falls back to STUB_KEY and transcribe() returns a canned response.
  */
 @Component
 @ConditionalOnProperty("openai.api-key")
@@ -30,11 +33,23 @@ public class OpenAiProvider {
     // Size limit for OpenAI audio file upload (25 MB).
     public static final long MAX_FILE_SIZE = 25L * 1024 * 1024;
     
+    // Default from application.properties when $OPENAI_API_KEY is unset
+    private static final String STUB_KEY = "stub-key";
+        
     // Springboot inbuilt REST API client
     private final RestClient restClient;
+    
+    // True when running without a real key — transcribe() returns canned data
+    private final boolean stubbed;
 
     // Extract API key on instantiation
     public OpenAiProvider(@Value("${openai.api-key}") String apiKey) {
+    	
+    	// TODO: remove
+    	this.stubbed = STUB_KEY.equals(apiKey);
+    	if (stubbed) {
+    		System.out.println("No OPENAI_API_KEY set — serving stubbed transcriptions.");
+    	}
     	
     	// Create REST client using whisper API endpoint + api key in auth header
         this.restClient = RestClient.builder()
@@ -60,6 +75,11 @@ public class OpenAiProvider {
      * verbose_json will give the most meta data to work with
      *  */
     public OpenAiResponse transcribe(MultipartFile audio) throws IOException {
+    	
+    	// TODO: remove
+    	if (stubbed) {
+    		return OpenAiResponse.stub();
+    	}
     	
     	// Build API request to whisper endpoint
         MultipartBodyBuilder body = new MultipartBodyBuilder();
