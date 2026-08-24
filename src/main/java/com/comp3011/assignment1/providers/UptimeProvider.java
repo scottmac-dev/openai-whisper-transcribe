@@ -2,7 +2,11 @@ package com.comp3011.assignment1.providers;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.springframework.boot.SpringApplication;
+import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.stereotype.Service;
 
 import com.comp3011.assignment1.responses.UptimeResponse;
@@ -20,9 +24,15 @@ import com.comp3011.assignment1.responses.UptimeResponse;
  *  */
 @Service
 public class UptimeProvider {
+    private final ConfigurableApplicationContext context;
     private final Instant serverStartTimeUTC = Instant.now();
     
-    public UptimeProvider() {}
+    // Prevent duplicate shutdown requests
+    private final AtomicBoolean shutdownRequested = new AtomicBoolean(false);
+    
+    public UptimeProvider( ConfigurableApplicationContext context) {
+    	this.context = context;
+    }
     
     /* UTC timestamp at which the server process started, encoded as RFC 3339. */
     private String startTime() {
@@ -43,6 +53,24 @@ public class UptimeProvider {
     /* Serialised to UptimeResponse for API return */
     public UptimeResponse uptimeResponse() {
     	return new UptimeResponse(this.startTime(), this.now(), this.uptime());
+    }
+    
+    /* Concurrency safe shutdown request */
+    public boolean requestShutdown() {
+
+        if (!shutdownRequested.compareAndSet(false, true)) {
+            return false;
+        }
+
+        CompletableFuture.runAsync(() -> {
+            try {
+                SpringApplication.exit(context);
+            } catch (Exception e) {
+                shutdownRequested.set(false);
+            }
+        });
+
+        return true;
     }
     
 }

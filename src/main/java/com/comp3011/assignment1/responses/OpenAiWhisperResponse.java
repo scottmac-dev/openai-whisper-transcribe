@@ -2,28 +2,11 @@ package com.comp3011.assignment1.responses;
 
 import java.util.List;
 
-/**
- * A single Whisper segment from the OpenAI verbose_json response.
- * 
- * Each segment carries a time window, transcribed text, token IDs, and decoding quality metrics
- * 
- */
-record OpenAiSegment(
-        int id,
-        int seek,
-        double start,
-        double end,
-        String text,
-        int[] tokens,
-        double temperature,
-        double avg_logprob,
-        double compression_ratio,
-        double no_speech_prob
-) {}
-
 
 /**
  * Maps the OpenAI Whisper API verbose_json response.
+ *
+ * Kept as a fallback — the app currently uses OpenAi4oResponse.
  *
  * Contains metadata and an ordered list of OpenAiSegment objects.
  * 
@@ -49,7 +32,7 @@ record OpenAiSegment(
 	}
  *
  */
-public record OpenAiResponse(
+public record OpenAiWhisperResponse(
         String task,
         String language,
         double duration,
@@ -59,8 +42,8 @@ public record OpenAiResponse(
 	/**
 	 * Canned response used when no real OpenAI API key is configured
 	 */
-	public static OpenAiResponse stub() {
-		return new OpenAiResponse(
+	public static OpenAiWhisperResponse stub() {
+		return new OpenAiWhisperResponse(
 				"transcribe",
 				"english",
 				7.4,

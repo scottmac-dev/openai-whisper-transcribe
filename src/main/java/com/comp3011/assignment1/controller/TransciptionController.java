@@ -12,7 +12,10 @@ import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.comp3011.assignment1.providers.OpenAiProvider;
-import com.comp3011.assignment1.responses.OpenAiResponse;
+import com.comp3011.assignment1.responses.ErrorResponse;
+import com.comp3011.assignment1.responses.OpenAi4oResponse;
+
+import jakarta.servlet.http.HttpServletRequest;
 
 
 
@@ -35,28 +38,32 @@ public class TransciptionController {
      * Expects audio file payload attached as audio parameter
      */
     @PostMapping("/transcribe")
-    public ResponseEntity<OpenAiResponse> transcribe(@RequestParam("audio") MultipartFile audio) {
+    public ResponseEntity<?> transcribe(@RequestParam("audio") MultipartFile audio, HttpServletRequest req) {
         
     	// No file payload
     	if (audio.isEmpty()) {
-            return ResponseEntity.badRequest().build();
+            return ErrorResponse.entity(HttpStatus.BAD_REQUEST,
+            		"No audio file was supplied.", req.getRequestURI());
         }
     	
     	// File too large
         if (audio.getSize() > OpenAiProvider.MAX_FILE_SIZE) {
-            return ResponseEntity.status(HttpStatus.CONTENT_TOO_LARGE).build();
+            return ErrorResponse.entity(HttpStatus.CONTENT_TOO_LARGE,
+            		"Audio file exceeds the 25 MB upload limit.", req.getRequestURI());
         }
         
         // Offload to provider to handle transcription, handle error cases
         try {
-        	OpenAiResponse res = provider.transcribe(audio);
+        	OpenAi4oResponse res = provider.transcribe(audio);
         	return ResponseEntity.ok(res);
         } catch (RestClientResponseException  e) {
         	// Upstream failure
-        	return ResponseEntity.status(HttpStatus.BAD_GATEWAY).build();
+        	return ErrorResponse.entity(HttpStatus.BAD_GATEWAY,
+        			"Transcription provider is unavailable.", req.getRequestURI());
         } catch (IOException  e) {
         	// Internal failure
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            return ErrorResponse.entity(HttpStatus.INTERNAL_SERVER_ERROR,
+            		"An unexpected server error occurred.", req.getRequestURI());
         }
     }
     

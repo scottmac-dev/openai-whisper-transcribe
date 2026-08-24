@@ -22,6 +22,8 @@
     --accent-green-dim: #2a7a4a;
     --accent-green-glow: rgba(74,222,128,.16);
     --accent-cyan:      #22d3ee;
+    --accent-cyan-dim:  #1a7f96;
+    --accent-cyan-glow: rgba(34,211,238,.16);
 	--accent-pink:       #f472b6;
 	--accent-pink-dim:   #9a3a68;
 	--accent-pink-glow:  rgba(244,114,182,.16);
@@ -103,12 +105,13 @@ body {
 
 .offline-banner {
     padding: 0.6rem 0.9rem;
-    border: 1px solid var(--accent-pink-dim);
+    border: 1px solid var(--accent-cyan-dim);
     border-radius: var(--radius-md);
-    background: var(--accent-pink-glow);
-    color: var(--accent-pink);
+    background: var(--accent-cyan-glow);
+    color: var(--accent-cyan);
     font-size: 0.72rem;
     line-height: 1.5;
+    text-align: center;
 }
 .offline-banner[hidden] { display: none; }
 
@@ -205,7 +208,7 @@ body {
 .transcript-text { color: var(--text-primary); font-size: 0.85rem; line-height: 1.7; }
 
 #metadata { font-size: 0.75rem; color: var(--text-muted); line-height: 1.6; margin-bottom: 0.5rem; }
-#metadata code { background: var(--bg-elevated); padding: 0.1em 0.35em; border-radius: 3px; font-size: 0.9em; color: var(--text-secondary); }
+#metadata code { background: var(--bg-elevated); padding: 0.1em 0.35em; border-radius: 3px; font-size: 0.9em; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
 
 .stage-footer { display: flex; justify-content: flex-end; margin-top: 1rem; padding-top: 0.9rem; border-top: 1px solid var(--border-subtle); width: 100%; }
 .ghost-btn {
@@ -227,7 +230,7 @@ body {
 .sdot.busy { background: var(--accent-cyan); box-shadow: 0 0 6px rgba(34,211,238,0.4); animation: pulse-status 0.8s ease-in-out infinite; }
 .sdot.ok { background: var(--accent-green); box-shadow: 0 0 6px var(--accent-green-glow); }
 .sdot.up { background: var(--accent-green); box-shadow: 0 0 6px var(--accent-green-glow); }
-.sdot.down { background: var(--accent-pink); box-shadow: 0 0 6px var(--accent-pink-glow); animation: pulse-status 1.2s ease-in-out infinite; }
+.sdot.down { background: var(--accent-pink); }
 @keyframes pulse-status { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 
 /* ── Scrollbar ─────────────────────────────────────────── */

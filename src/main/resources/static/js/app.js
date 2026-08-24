@@ -68,7 +68,7 @@ function setStatus(status, text) {
 
 // ── Recording ─────────────────────────────────────────────────────────
 // MediaRecorder gives out of the box processing and formatting to .webm,
-// which the OpenAI Whisper endpoint accepts directly — no PCM conversion
+// which the OpenAI transcription endpoint accepts directly — no PCM conversion
 // needed on our side.
 let mediaRecorder = null;
 let stream = null;
@@ -97,7 +97,7 @@ async function startRecording() {
         } else {
 			// Before sending, show basic meta data and prompt confirmation
             document.getElementById('reviewMeta').textContent =
-                `${formatBytes(blob.size)} · openai · whisper-1`;
+                `${formatBytes(blob.size)} · openai · gpt-4o-transcribe`;
             setStatus('review', `Recording saved (${formatBytes(blob.size)}). Ready to send.`);
         }
     };
@@ -164,12 +164,15 @@ async function sendRecording() {
 }
 
 // ── Transcript rendering ──────────────────────────────────────────────
-// Shape comes from OpenAiResponse: { task, language, duration, text, segments }
+// Shape comes from OpenAi4oResponse: { text, usage }
 function renderTranscript(data) {
+    const usage = data.usage ?? {};
+    const tokens = (n) => (n ?? 0).toLocaleString();
     document.getElementById('metadata').innerHTML =
-        `<code>${data.task ?? 'transcribe'}</code> · ` +
-        `<code>${data.language ?? 'unknown'}</code> · ` +
-        `<code>${(data.duration ?? 0).toFixed(1)}s</code>`;
+        `<code>gpt-4o-transcribe</code> · token usage · ` +
+        `<code>input ${tokens(usage.input_tokens)}</code> · ` +
+        `<code>output ${tokens(usage.output_tokens)}</code> · ` +
+        `<code>total ${tokens(usage.total_tokens)}</code>`;
 
     const p = document.createElement('p');
     p.className = 'transcript-text';
