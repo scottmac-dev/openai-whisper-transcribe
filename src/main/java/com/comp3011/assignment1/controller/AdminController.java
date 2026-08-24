@@ -42,7 +42,7 @@ public class AdminController {
     
     
 	// /api/v1/admin/shutdown
-	//  Requests a graceful shutdown of the server. A successful response means
+	// Requests a graceful shutdown of the server. A successful response means
     // the shutdown request has been accepted and the server has begun, or will
     // shortly begin, its graceful shutdown sequence. Existing in-flight work
     // should be allowed to complete according to the server's configured

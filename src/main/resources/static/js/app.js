@@ -3,6 +3,8 @@
 // ── Constants ─────────────────────────────────────────────────────────
 const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25 MB matching OpenAiProvider.MAX_FILE_SIZE
 const TRANSCRIBE_URL = '/api/v1/transcribe';	// STT endpoint
+const UPTIME_URL = '/api/v1/admin/uptime';		// admin uptime endpoint
+const UPTIME_POLL_MS = 1000;					// header refresh interval
 
 // ── Helpers ───────────────────────────────────────────────────────────
 function formatBytes(bytes) {
@@ -11,6 +13,24 @@ function formatBytes(bytes) {
     const sizes = ['B', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+}
+
+// Renders UptimeResponse.utcServerStart (RFC 3339) in the viewer's local time
+function formatStartTime(iso) {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '--';
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()} ` +
+           `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+
+// UptimeResponse.serverUptimeSeconds (double) as e.g. "2d 03:14:07" / "00:01:30"
+function formatUptime(seconds) {
+    const total = Math.max(0, Math.floor(seconds));
+    const pad = (n) => String(n).padStart(2, '0');
+    const days = Math.floor(total / 86400);
+    const clock = `${pad(Math.floor(total / 3600) % 24)}:${pad(Math.floor(total / 60) % 60)}:${pad(total % 60)}`;
+    return days > 0 ? `${days}d ${clock}` : clock;
 }
 
 // Maps the status codes TransciptionController returns to something readable
@@ -116,6 +136,10 @@ function clearRecording() {
 
 // Send to server for STT processing
 async function sendRecording() {
+    if (serverOnline === false) {
+        setStatus('error', 'Not connected to server.');
+        return;
+    }
     if (!blob || blob.size > MAX_FILE_SIZE) {
         setStatus('error', 'Nothing valid to send.');
         return;
@@ -159,8 +183,79 @@ function resetToIdle() {
     setStatus('idle', '');
 }
 
+// ── Server status header ──────────────────────────────────────────
+// Polls AdminController's uptime endpoint once a second. 
+const serverStatusEl = document.getElementById('serverStatus');
+const serverDot = document.getElementById('serverDot');
+const serverConnEl = document.getElementById('serverConn');
+const serverStartEl = document.getElementById('serverStart');
+const serverUptimeEl = document.getElementById('serverUptime');
+
+const offlineBanner = document.getElementById('offlineBanner');
+const statusLine = document.getElementById('statusLine');
+const idleTitle = document.getElementById('idleTitle');
+const recordBtn = document.getElementById('recordBtn');
+const sendBtn = document.getElementById('sendBtn');
+
+let uptimeInFlight = false;	// skip a tick rather than stacking slow requests
+let serverOnline = null;	// null until the first poll resolves, then a bool
+
+// Gates everything that needs the server.
+function applyReachability(online) {
+    if (online === serverOnline) return;
+    serverOnline = online;
+
+    offlineBanner.hidden = online;
+    statusLine.hidden = !online;
+    stageGlow.classList.toggle('offline', !online);
+
+    recordBtn.disabled = !online;
+    sendBtn.disabled = !online;
+    idleTitle.textContent = online ? 'Click to start transcribing' : 'Not connected to server';
+}
+
+function setServerOffline() {
+    applyReachability(false);
+    serverStatusEl.classList.remove('up');
+    serverStatusEl.classList.add('down');
+    serverDot.className = 'sdot down';
+    serverConnEl.textContent = 'Offline';
+    serverStartEl.textContent = '--';
+    serverUptimeEl.textContent = '--';
+}
+
+// Shape comes from UptimeResponse: { utcServerStart, utcNow, serverUptimeSeconds }
+function renderServerStatus(data) {
+    applyReachability(true);
+    serverStatusEl.classList.remove('down');
+    serverStatusEl.classList.add('up');
+    serverDot.className = 'sdot up';
+    serverConnEl.textContent = 'Connected';
+    serverStartEl.textContent = formatStartTime(data.utcServerStart);
+    serverUptimeEl.textContent = formatUptime(data.serverUptimeSeconds ?? 0);
+}
+
+// Poll uptime/connection on set interval
+async function pollUptime() {
+    if (uptimeInFlight) return;
+    uptimeInFlight = true;
+    try {
+        const res = await fetch(UPTIME_URL, { cache: 'no-store' });
+        if (!res.ok) throw new Error(String(res.status));
+        renderServerStatus(await res.json());
+    } catch {
+        setServerOffline();
+    } finally {
+        uptimeInFlight = false;
+    }
+}
+
+pollUptime();
+setInterval(pollUptime, UPTIME_POLL_MS);
+
 // ── Interaction handlers ───────────────────────────────────────────
-document.getElementById('recordBtn').addEventListener('click', async () => {
+recordBtn.addEventListener('click', async () => {
+    if (serverOnline === false) return;
     try {
         await startRecording();
     } catch (err) {
@@ -169,7 +264,7 @@ document.getElementById('recordBtn').addEventListener('click', async () => {
 });
 
 document.getElementById('stopBtn').addEventListener('click', stopRecording);
-document.getElementById('sendBtn').addEventListener('click', sendRecording);
+sendBtn.addEventListener('click', sendRecording);
 document.getElementById('discardBtn').addEventListener('click', clearRecording);
 document.getElementById('oversizedResetBtn').addEventListener('click', clearRecording);
 document.getElementById('errorResetBtn').addEventListener('click', resetToIdle);

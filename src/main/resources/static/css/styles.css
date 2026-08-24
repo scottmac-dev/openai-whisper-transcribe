@@ -22,11 +22,9 @@
     --accent-green-dim: #2a7a4a;
     --accent-green-glow: rgba(74,222,128,.16);
     --accent-cyan:      #22d3ee;
-    --accent-amber:     #fbbf24;
 	--accent-pink:       #f472b6;
 	--accent-pink-dim:   #9a3a68;
 	--accent-pink-glow:  rgba(244,114,182,.16);
-    --accent-blue:      #60a5fa;
 
     --mono: 'JetBrains Mono', 'SF Mono', 'Cascadia Code', 'Fira Code', ui-monospace, monospace;
 
@@ -62,13 +60,57 @@ body {
     gap: 1rem;
 }
 
-.top-header { padding: 0.5rem 0.1rem 0; }
+.top-header {
+    padding: 0.5rem 0.1rem 0;
+    display: flex; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; gap: 0.5rem 1rem;
+}
 .top-header .label {
     font-size: 0.7rem;
     letter-spacing: 0.14em;
     text-transform: uppercase;
     color: var(--text-muted);
 }
+
+/* ── Server status (polled from /api/v1/admin/uptime) ──── */
+
+.server-status {
+    display: flex; align-items: center; flex-wrap: wrap;
+    gap: 0.4rem 0.9rem;
+    font-size: 0.68rem;
+    color: var(--text-secondary);
+}
+.header-left { display: flex; align-items: center; gap: 0.8rem; }
+.conn {
+    display: flex; align-items: center; gap: 0.4rem;
+    font-size: 0.68rem;
+    color: var(--text-secondary);
+}
+.server-status .meta { display: flex; align-items: center; gap: 0.35rem; }
+.server-status .meta-key {
+    letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted);
+}
+.server-status .meta-val {
+    color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
+}
+/* Dot + label track the connection state set by app.js */
+.top-header.up .conn { color: var(--accent-green); }
+.top-header.down .conn { color: var(--accent-pink); }
+.top-header.down .meta-val { color: var(--text-muted); }
+
+/* ── Offline banner ────────────────────────────────────── */
+
+.offline-banner {
+    padding: 0.6rem 0.9rem;
+    border: 1px solid var(--accent-pink-dim);
+    border-radius: var(--radius-md);
+    background: var(--accent-pink-glow);
+    color: var(--accent-pink);
+    font-size: 0.72rem;
+    line-height: 1.5;
+}
+.offline-banner[hidden] { display: none; }
 
 /* ── Stage — hero panel ────────────────────────────────── */
 
@@ -82,6 +124,7 @@ body {
     pointer-events: none;
 }
 .stage-glow.recording { opacity: 0.9; }
+.stage-glow.offline { opacity: 0.15; }
 
 .stage {
     position: relative;
@@ -120,8 +163,9 @@ body {
     transition: transform 0.15s, border-color var(--transition), background var(--transition);
     color: var(--text-primary);
 }
-.mic-btn:hover { transform: scale(1.04); border-color: var(--accent-pink); }
-.mic-btn:active { transform: scale(0.96); }
+.mic-btn:hover:not(:disabled) { transform: scale(1.04); border-color: var(--accent-cyan); }
+.mic-btn:active:not(:disabled) { transform: scale(0.96); }
+.mic-btn:disabled { cursor: not-allowed; opacity: 0.35; }
 .mic-btn svg { width: 22px; height: 22px; }
 .mic-wrap.live .mic-btn { background: var(--accent-pink); border-color: var(--accent-pink); color: #0a0e14; }
 
@@ -153,7 +197,7 @@ body {
     color: #0a0e14; font-family: var(--mono); font-weight: 600; font-size: 0.78rem;
     padding: 0.55rem 1.3rem; border-radius: 20px; cursor: pointer; transition: all var(--transition);
 }
-.primary-btn:hover { background: var(--accent-pink); }
+.primary-btn:hover:not(:disabled) { background: var(--accent-pink); }
 
 /* transcript view */
 .view.transcript { align-items: stretch; text-align: left; gap: 0; width: 100%; }
@@ -169,15 +213,21 @@ body {
     font-family: var(--mono); font-size: 0.72rem; padding: 0.45rem 0.9rem; border-radius: 20px;
     cursor: pointer; transition: all var(--transition);
 }
-.ghost-btn:hover { border-color: var(--accent-pink); color: var(--accent-pink); }
+.ghost-btn:hover:not(:disabled) { border-color: var(--accent-pink); color: var(--accent-pink); }
+.primary-btn:disabled, .ghost-btn:disabled { cursor: not-allowed; opacity: 0.35; }
 
 /* ── Status bar ────────────────────────────────────────── */
 
+.status-line[hidden] { display: none; }
 .status-line { display: flex; align-items: center; gap: 0.5rem; padding: 0.2rem 0.3rem; font-size: 0.72rem; color: var(--text-secondary); }
 .sdot { width: 6px; height: 6px; border-radius: 50%; background: var(--text-muted); }
-.sdot.rec { background: var(--accent-pink); box-shadow: 0 0 6px rgba(248,113,113,0.5); animation: pulse-status 1.2s ease-in-out infinite; }
+/* Idle "Ready" dot — the modifiers below still override it when a state is set */
+.status-line .sdot { background: var(--accent-cyan); box-shadow: 0 0 6px rgba(34,211,238,0.4); }
+.sdot.rec { background: var(--accent-pink); box-shadow: 0 0 6px var(--accent-pink-glow); animation: pulse-status 1.2s ease-in-out infinite; }
 .sdot.busy { background: var(--accent-cyan); box-shadow: 0 0 6px rgba(34,211,238,0.4); animation: pulse-status 0.8s ease-in-out infinite; }
 .sdot.ok { background: var(--accent-green); box-shadow: 0 0 6px var(--accent-green-glow); }
+.sdot.up { background: var(--accent-green); box-shadow: 0 0 6px var(--accent-green-glow); }
+.sdot.down { background: var(--accent-pink); box-shadow: 0 0 6px var(--accent-pink-glow); animation: pulse-status 1.2s ease-in-out infinite; }
 @keyframes pulse-status { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 
 /* ── Scrollbar ─────────────────────────────────────────── */
@@ -191,5 +241,6 @@ body {
 
 @media (max-width: 480px) {
     body { padding: 1rem 0.5rem; }
+    .top-header { align-items: flex-start; flex-direction: column; }
     .stage { padding: 2rem 1.25rem; min-height: 320px; }
 }

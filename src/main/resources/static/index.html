@@ -11,8 +11,30 @@
 <body>
     <div class="container">
 
-        <div class="top-header">
-            <span class="label">Whisper Transcribe</span>
+        <!-- Server bar for showing uptime on regular poll -->
+        <header class="top-header" id="serverStatus">
+            <div class="header-left">
+                <span class="label">STT Transcribe</span>
+                <span class="conn">
+                    <span class="sdot" id="serverDot"></span>
+                    <span id="serverConn">Connecting</span>
+                </span>
+            </div>
+            <div class="server-status">
+                <span class="meta">
+                    <span class="meta-key">started</span>
+                    <span class="meta-val" id="serverStart">--</span>
+                </span>
+                <span class="meta">
+                    <span class="meta-key">uptime</span>
+                    <span class="meta-val" id="serverUptime">--</span>
+                </span>
+            </div>
+        </header>
+
+        <!-- Shown only while the uptime poll cannot reach the server -->
+        <div class="offline-banner" id="offlineBanner" hidden>
+            Not connected — the server is unreachable. Recording is disabled until it returns.
         </div>
 
         <!-- Exactly one .view is visible at a time, chosen by app.js setting `hidden` on all the others. -->
@@ -28,7 +50,7 @@
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="18" x2="12" y2="22"/></svg>
                         </button>
                     </div>
-                    <div class="stage-title">Click to start transcribing</div>
+                    <div class="stage-title" id="idleTitle">Click to start transcribing</div>
                 </div>
 
                 <!-- recording -->
@@ -43,8 +65,7 @@
                     <div class="stage-sub">Click to stop</div>
                 </div>
 
-                <!-- review — nothing has been uploaded yet, so Discard just
-                     clears the local buffer, no server round trip -->
+                <!-- review before uploading and allow discard to avoid server round trip -->
                 <div class="view" data-view="review" hidden>
                     <div class="stage-title">Ready to send</div>
                     <div class="stage-sub" id="reviewMeta"></div>
@@ -84,7 +105,8 @@
             </div>
         </div>
 
-        <div class="status-line">
+        <!-- Hidden while offline — the banner is the only status that matters then -->
+        <div class="status-line" id="statusLine">
             <span class="sdot" id="statusDot"></span>
             <span id="statusText">Ready</span>
         </div>
