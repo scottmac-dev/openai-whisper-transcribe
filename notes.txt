@@ -1,0 +1,6 @@
+General spring boot decorators
+@Component   → generic Spring-managed object
+@Service     → business/application logic
+@Repository  → data persistence / database access
+@Controller  → MVC/web controller
+@RestController → REST API controller
