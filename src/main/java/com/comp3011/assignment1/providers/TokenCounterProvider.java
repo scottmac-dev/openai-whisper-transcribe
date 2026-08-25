@@ -4,6 +4,8 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import org.springframework.stereotype.Service;
 
+import com.comp3011.assignment1.responses.GlobalStatsResponse;
+
 /*
  * Responsible for global token metrics tracking
  *  */
@@ -32,5 +34,9 @@ public class TokenCounterProvider {
 
     public long getTotalTokens() {
         return inputTokens.get() + outputTokens.get();
+    }
+    
+    public GlobalStatsResponse getTokenStats() {
+    	return new GlobalStatsResponse(this.getInputTokens(), this.getOutputTokens());
     }
 }

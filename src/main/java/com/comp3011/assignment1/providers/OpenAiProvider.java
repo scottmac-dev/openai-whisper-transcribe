@@ -12,7 +12,7 @@ import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.comp3011.assignment1.responses.OpenAi4oResponse;
+import com.comp3011.assignment1.responses.OpenAiTranscribeResponse;
 
 /**
  * OpenAI transcription provider.
@@ -28,7 +28,7 @@ public class OpenAiProvider {
 	
 	// Static API endpoint and model choice, no other models or providers supported
     private static final String TRANSCRIBE_BASE_URL = "https://api.openai.com/v1/audio/transcriptions";
-    private static final String MODEL = "gpt-4o-transcribe";
+    private static final String MODEL = "gpt-4o-mini-transcribe";
     
     // Size limit for OpenAI audio file upload (25 MB).
     public static final long MAX_FILE_SIZE = 25L * 1024 * 1024;
@@ -79,11 +79,11 @@ public class OpenAiProvider {
      * Available reponse formats: text, json, verbose_json, srt, vtt
      * verbose_json will give the most meta data to work with
      *  */
-    public OpenAi4oResponse transcribe(MultipartFile audio) throws IOException {
+    public OpenAiTranscribeResponse transcribe(MultipartFile audio) throws IOException {
     	
     	// TODO: remove
     	if (stubbed) {
-    		return countTokens(OpenAi4oResponse.stub());
+    		return countTokens(OpenAiTranscribeResponse.stub());
     	}
     	
     	// Convert file to byte array resource for embedding into request body
@@ -99,18 +99,19 @@ public class OpenAiProvider {
         
         body.add("file", resource);
         body.add("model", MODEL);
-        body.add("response_format", "verbose_json");
+        body.add("response_format", "json");
+        body.add("language", "en");
         
         // POST to endpoint, extract return type into response class
         return countTokens(restClient.post()
                 .contentType(MediaType.MULTIPART_FORM_DATA)
                 .body(body)
                 .retrieve()
-                .body(OpenAi4oResponse.class));
+                .body(OpenAiTranscribeResponse.class));
     }
 
     // Feed the response's usage block into the global token counter
-    private OpenAi4oResponse countTokens(OpenAi4oResponse res) {
+    private OpenAiTranscribeResponse countTokens(OpenAiTranscribeResponse res) {
         if (res != null && res.usage() != null) {
             tokenCounter.addInputTokens(res.usage().input_tokens());
             tokenCounter.addOutputTokens(res.usage().output_tokens());

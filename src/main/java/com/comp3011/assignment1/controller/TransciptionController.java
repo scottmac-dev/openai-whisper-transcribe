@@ -13,7 +13,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.comp3011.assignment1.providers.OpenAiProvider;
 import com.comp3011.assignment1.responses.ErrorResponse;
-import com.comp3011.assignment1.responses.OpenAi4oResponse;
+import com.comp3011.assignment1.responses.OpenAiTranscribeResponse;
 
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -54,7 +54,7 @@ public class TransciptionController {
         
         // Offload to provider to handle transcription, handle error cases
         try {
-        	OpenAi4oResponse res = provider.transcribe(audio);
+        	OpenAiTranscribeResponse res = provider.transcribe(audio);
         	return ResponseEntity.ok(res);
         } catch (RestClientResponseException  e) {
         	// Upstream failure

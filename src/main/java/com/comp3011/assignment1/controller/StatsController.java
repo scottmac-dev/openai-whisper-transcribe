@@ -1,7 +1,17 @@
 package com.comp3011.assignment1.controller;
 
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import com.comp3011.assignment1.providers.TokenCounterProvider;
+import com.comp3011.assignment1.responses.ErrorResponse;
+import com.comp3011.assignment1.responses.GlobalStatsResponse;
+import com.comp3011.assignment1.responses.UptimeResponse;
+
+import jakarta.servlet.http.HttpServletRequest;
 
 /**
  * Controller for global statistics
@@ -11,11 +21,33 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/global")
 public class StatsController {
 	
-	// TODO:
-	//
-	// /api/v1/global/stats
-	// Returns cumulative input and output token usage for the speech-to-text
-    // Cloud service since the current UTC server start. Counters reset when
-    //the server process restarts.
+	TokenCounterProvider tokenCounter;
+	
+	public StatsController(TokenCounterProvider tcp) {
+		this.tokenCounter = tcp;
+	}
+	
+    /* 
+     * Returns cumulative input and output token usage for the speech-to-text
+       Cloud service since the current UTC server start. Counters reset when
+      the server process restarts.
+       
+       
+       Responses:
+       	200 Global token usage statistics were retrieved successfully.
+       	500 An unexpected server error occurred.
+       
+       Endpoint: /api/v1/global/stats
+     *  */
+    @GetMapping("/stats")
+    public ResponseEntity<?> uptime(HttpServletRequest req) {
+    	try {
+    		GlobalStatsResponse res = tokenCounter.getTokenStats();
+    		return ResponseEntity.ok(res);
+    	} catch (RuntimeException e) {
+    		return ErrorResponse.entity(HttpStatus.INTERNAL_SERVER_ERROR,
+    				"An unexpected server error occurred.", req.getRequestURI());
+    	}
+    }
 
 }

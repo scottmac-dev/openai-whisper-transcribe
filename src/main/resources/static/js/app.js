@@ -97,7 +97,7 @@ async function startRecording() {
         } else {
 			// Before sending, show basic meta data and prompt confirmation
             document.getElementById('reviewMeta').textContent =
-                `${formatBytes(blob.size)} · openai · gpt-4o-transcribe`;
+                `${formatBytes(blob.size)} · openai · gpt-4o-mini-transcribe`;
             setStatus('review', `Recording saved (${formatBytes(blob.size)}). Ready to send.`);
         }
     };
@@ -150,6 +150,7 @@ async function sendRecording() {
     const body = new FormData();
     body.append('audio', blob, 'recording.webm');
 	
+	
 	// Send to server
     try {
         const res = await fetch(TRANSCRIBE_URL, { method: 'POST', body });
@@ -169,7 +170,7 @@ function renderTranscript(data) {
     const usage = data.usage ?? {};
     const tokens = (n) => (n ?? 0).toLocaleString();
     document.getElementById('metadata').innerHTML =
-        `<code>gpt-4o-transcribe</code> · token usage · ` +
+        `<code>gpt-4o-mini-transcribe</code> · token usage · ` +
         `<code>input ${tokens(usage.input_tokens)}</code> · ` +
         `<code>output ${tokens(usage.output_tokens)}</code> · ` +
         `<code>total ${tokens(usage.total_tokens)}</code>`;
