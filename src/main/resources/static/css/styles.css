@@ -1,9 +1,8 @@
-/* ═══════════════════════════════════════════════════════════
-   VTT API — Dark Terminal UI
-   ═══════════════════════════════════════════════════════════ */
+/* Global stylesheet */
 
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
+/* Darm terminal theme, cyan, green and pink accent colours */
 :root {
     --bg-primary:    #0a0e14;
     --bg-card:       #111820;
@@ -86,9 +85,9 @@ body {
 .conn {
     display: flex; align-items: center; gap: 0.4rem;
     font-size: 0.68rem;
-    color: var(--text-secondary);
+    color: var(--text-secondary);	/* matches .status-line opposite it */
 }
-.server-status .meta { display: flex; align-items: center; gap: 0.35rem; }
+.server-status .meta { display: flex; align-items: center; gap: 0.5rem; }
 .server-status .meta-key {
     letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted);
 }
@@ -96,19 +95,22 @@ body {
     color: var(--text-primary);
     font-variant-numeric: tabular-nums;
 }
-/* Dot + label track the connection state set by app.js */
-.top-header.up .conn { color: var(--accent-green); }
-.top-header.down .conn { color: var(--accent-pink); }
+/* The dot alone carries the connection state, the label stays muted */
+/* Header values go flat while the server is unreachable */
 .top-header.down .meta-val { color: var(--text-muted); }
+
+/* Global token usage (polled from /api/v1/global/stats) reuses the
+   .server-status meta styling as is, dimming only when a poll fails. */
+#tokenStats.stale .meta-val { color: var(--text-muted); }
 
 /* ── Offline banner ────────────────────────────────────── */
 
 .offline-banner {
     padding: 0.6rem 0.9rem;
-    border: 1px solid var(--accent-cyan-dim);
+    border: 1px solid var(--accent-pink-dim);
     border-radius: var(--radius-md);
-    background: var(--accent-cyan-glow);
-    color: var(--accent-cyan);
+    background: var(--accent-pink-glow);
+    color: var(--accent-pink);
     font-size: 0.72rem;
     line-height: 1.5;
     text-align: center;
@@ -200,15 +202,14 @@ body {
     color: #0a0e14; font-family: var(--mono); font-weight: 600; font-size: 0.78rem;
     padding: 0.55rem 1.3rem; border-radius: 20px; cursor: pointer; transition: all var(--transition);
 }
-.primary-btn:hover:not(:disabled) { background: var(--accent-pink); }
+.primary-btn:hover:not(:disabled) { background: var(--accent-cyan); }
+/* Sits beside a .ghost-btn in a stage footer — smaller, but still filled */
+.primary-btn.compact { font-size: 0.72rem; padding: 0.45rem 1rem; }
 
 /* transcript view */
 .view.transcript { align-items: stretch; text-align: left; gap: 0; width: 100%; }
 .transcript-scroll { flex: 1; overflow-y: auto; max-height: 300px; padding-right: 0.3rem; }
 .transcript-text { color: var(--text-primary); font-size: 0.85rem; line-height: 1.7; }
-
-#metadata { font-size: 0.75rem; color: var(--text-muted); line-height: 1.6; margin-bottom: 0.5rem; }
-#metadata code { background: var(--bg-elevated); padding: 0.1em 0.35em; border-radius: 3px; font-size: 0.9em; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
 
 .stage-footer { display: flex; justify-content: flex-end; margin-top: 1rem; padding-top: 0.9rem; border-top: 1px solid var(--border-subtle); width: 100%; }
 .ghost-btn {
@@ -219,8 +220,42 @@ body {
 .ghost-btn:hover:not(:disabled) { border-color: var(--accent-pink); color: var(--accent-pink); }
 .primary-btn:disabled, .ghost-btn:disabled { cursor: not-allowed; opacity: 0.35; }
 
-/* ── Status bar ────────────────────────────────────────── */
+/* usage view — metrics for the last transcription */
+.usage-list {
+    flex: 1; overflow-y: auto; max-height: 300px;
+    /* Room for the scrollbar so it never sits over the values */
+    padding-right: 1rem;
+    display: grid; grid-template-columns: auto 1fr;
+    gap: 0.55rem 1rem; align-content: start;
+    font-size: 0.76rem;
+}
+/* Section heading, spans both columns */
+.usage-list .usage-head {
+    grid-column: 1 / -1;
+    font-size: 0.7rem; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--accent-cyan);
+    padding-bottom: 0.4rem; border-bottom: 1px solid var(--accent-cyan-dim);
+}
+/* Breathing room above every heading but the first */
+.usage-list .usage-head ~ .usage-head { margin-top: 0.7rem; }
+.usage-list dt { color: var(--text-secondary); }
+.usage-list dd {
+    color: var(--text-primary); text-align: right;
+    font-variant-numeric: tabular-nums; word-break: break-word;
+}
+/* Sub-rows of the input token breakdown */
+.usage-list dt.sub { color: var(--text-muted); padding-left: 1rem; }
+.usage-list dd.sub { color: var(--text-secondary); }
 
+.stage-footer { gap: 0.6rem; }
+
+/* ── Bottom bar: connection left, transient status right ─ */
+
+.bottom-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; gap: 0.4rem 1rem;
+    padding-top: 0.1rem;
+}
 .status-line[hidden] { display: none; }
 .status-line { display: flex; align-items: center; gap: 0.5rem; padding: 0.2rem 0.3rem; font-size: 0.72rem; color: var(--text-secondary); }
 .sdot { width: 6px; height: 6px; border-radius: 50%; background: var(--text-muted); }
@@ -245,5 +280,6 @@ body {
 @media (max-width: 480px) {
     body { padding: 1rem 0.5rem; }
     .top-header { align-items: flex-start; flex-direction: column; }
+    .header-left { flex-direction: column; align-items: flex-start; gap: 0.3rem; }
     .stage { padding: 2rem 1.25rem; min-height: 320px; }
 }

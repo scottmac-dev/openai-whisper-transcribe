@@ -30,10 +30,10 @@ public record OpenAiTranscribeResponse(
 				"This is a stubbed transcription. Set OPENAI_API_KEY to call the real API.",
 				new OpenAiUsage(
 						"tokens",
-						20,
-						new OpenAiInputTokenDetails(4, 4),
-				        20,
-				        20
+						1200,	
+						new OpenAiInputTokenDetails(16, 1184),
+				        480,
+				        1680
 				)
 		);
 	}

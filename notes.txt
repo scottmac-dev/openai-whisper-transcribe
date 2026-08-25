@@ -1,6 +1,104 @@
-General spring boot decorators
+SPRING BOOT NOTES — assignment1-api
+
+== Decorators ==
+
+Marks a class so Spring creates + manages singleton instance of it (a "bean") at startup.
+
 @Component   → generic Spring-managed object
 @Service     → business/application logic
 @Repository  → data persistence / database access
-@Controller  → MVC/web controller
-@RestController → REST API controller
+@Controller  → MVC/web controller (returns view names)
+@RestController → @Controller + @ResponseBody, return value IS the JSON body
+
+@Service vs @Component is basically same just, both are @Component under the hood
+
+== Application Instance ==
+
+@SpringBootApplication is 3 things rolled into one:
+  @Configuration      — this class can define beans
+  @EnableAutoConfig   — wire up Tomcat/Jackson/etc based on what's on classpath
+  @ComponentScan      — scan THIS package + everything below it for stereotypes
+
+That's why every class lives under com.comp3011.assignment1.*
+
+Anything outside that package tree just won't be found.
+
+SpringApplication.run(Class, args) starts the server.
+
+== Dependency Injection ==
+
+Constructor injection, spring uses it and resolves each param from the bean pool.
+
+Example: public AdminController(UptimeProvider up) { this.uptimeProvider = up; }
+
+Beans are singletons by default
+
+TokenCounterProvider counters survive across requests, which is why the global stats work. 
+
+Requires AtomicLong, since multiple requests hit the same instance.
+
+ConfigurableApplicationContext = special Bean = inject it to get a handle on the app itself (UptimeProvider uses it for shutdown).
+
+== Config & Properties ==
+
+application.properties (src/main/resources).
+
+@Value("${openai.api-key}") on a constructor param pulls the value in.
+
+Property syntax supports env fallback: openai.api-key=${OPENAI_API_KEY:stub-key} = env var if set, otherwise "stub-key"
+
+@ConditionalOnProperty("openai.api-key") on OpenAiProvider = only register this bean if that property exists.
+
+== Bootstrap HTTP & REST Helpers ==
+
+@RequestMapping("/api/v1/admin")  = class level, prefix for everything inside
+@GetMapping("/uptime")            = method level GET specified, appends /api/v1/admin/uptime
+@PostMapping("/shutdown")		  = same principle but for POST
+
+Method params Spring fills in automatically:
+  @RequestParam("audio") MultipartFile audio = a multipart form field
+  HttpServletRequest req                     = raw servlet request
+
+Multipart parsing is auto-configured, no setup needed. Eg .isEmpty(), .getSize(),
+.getBytes(), .getOriginalFilename()
+
+ResponseEntity<T> = status + headers + body.
+    ResponseEntity.ok(res)                       = 200 + body
+    ResponseEntity.status(HttpStatus.ACCEPTED).body(x)   = 202 + body
+    ResponseEntity.status(status).body(x)        = anything
+
+ResponseEntity<?> as the return type lets handler return success record or an ErrorResponse.
+
+RestClient = modern synchronous client, build once in the constructor, reuse.
+
+    RestClient.builder()
+        .baseUrl(URL)
+        .defaultHeader("Authorization", "Bearer " + key)
+        .build();
+
+Usage:
+    restClient.post()
+        .contentType(MediaType.MULTIPART_FORM_DATA)
+        .body(body)
+        .retrieve()
+        .body(OpenAiTranscribeResponse.class);   = deserialises JSON into the record
+
+MultiValueMap (LinkedMultiValueMap) = one key can hold multiple values, .add(key, value) to append.
+
+Errors: .retrieve() throws RestClientResponseException on a 4xx/5xx from upstream. 
+Catch it and map to your own status.
+
+== Shutdown With Context ==
+
+SpringApplication.exit(context) closes the context and stops the JVM.
+
+Must run off the request thread (CompletableFuture.runAsync) or you're
+killing the server while it's still trying to write your response.
+
+Requires server.shutdown=graceful in application.properties.
+
+
+== Static Resources (frontend) ==
+
+src/main/resources/static/ is served at the web root automatically.
+index.html → GET /. No controller, no config.

@@ -2,9 +2,11 @@
 
 // ── Constants ─────────────────────────────────────────────────────────
 const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25 MB matching OpenAiProvider.MAX_FILE_SIZE
+const MODEL = 'gpt-4o-mini-transcribe';	// matching OpenAiProvider.MODEL
 const TRANSCRIBE_URL = '/api/v1/transcribe';	// STT endpoint
 const UPTIME_URL = '/api/v1/admin/uptime';		// admin uptime endpoint
-const UPTIME_POLL_MS = 1000;					// header refresh interval
+const STATS_URL = '/api/v1/global/stats';		// global token usage endpoint
+const UPTIME_POLL_MS = 1000;					// header/footer refresh interval
 
 // ── Helpers ───────────────────────────────────────────────────────────
 function formatBytes(bytes) {
@@ -15,13 +17,14 @@ function formatBytes(bytes) {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
 }
 
-// Renders UptimeResponse.utcServerStart (RFC 3339) in the viewer's local time
-function formatStartTime(iso) {
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return '--';
-    const pad = (n) => String(n).padStart(2, '0');
-    return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()} ` +
-           `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+// Token counts (int64) with thousands separators, e.g. "12,480"
+function formatTokens(n) {
+    return Number(n ?? 0).toLocaleString();
+}
+
+// Client measured round trip for the transcribe call, e.g. "1.42 s" / "840 ms"
+function formatDuration(ms) {
+    return ms >= 1000 ? `${(ms / 1000).toFixed(2)} s` : `${Math.round(ms)} ms`;
 }
 
 // UptimeResponse.serverUptimeSeconds (double) as e.g. "2d 03:14:07" / "00:01:30"
@@ -56,7 +59,7 @@ function setStatus(status, text) {
     statusDot.className = 'sdot';
     if (status === 'recording') statusDot.classList.add('rec');
     else if (status === 'transcribing') statusDot.classList.add('busy');
-    else if (status === 'done') statusDot.classList.add('ok');
+    else if (status === 'done' || status === 'usage') statusDot.classList.add('ok');
 
     statusTextEl.textContent = text || 'Ready';
 
@@ -97,8 +100,8 @@ async function startRecording() {
         } else {
 			// Before sending, show basic meta data and prompt confirmation
             document.getElementById('reviewMeta').textContent =
-                `${formatBytes(blob.size)} · openai · gpt-4o-mini-transcribe`;
-            setStatus('review', `Recording saved (${formatBytes(blob.size)}). Ready to send.`);
+                `${formatBytes(blob.size)} · openai · ${MODEL}`;
+            setStatus('review', `Recording saved (${formatBytes(blob.size)})`);
         }
     };
 	
@@ -151,11 +154,15 @@ async function sendRecording() {
     body.append('audio', blob, 'recording.webm');
 	
 	
-	// Send to server
+	// Send to server, timing the round trip for the usage view
+    const sentBytes = blob.size;
+    const startedAt = performance.now();
     try {
         const res = await fetch(TRANSCRIBE_URL, { method: 'POST', body });
         if (!res.ok) throw new Error(describeFailure(res.status));
-        renderTranscript(await res.json());
+        const data = await res.json();
+        lastRequest = { data, sentBytes, elapsedMs: performance.now() - startedAt };
+        renderTranscript(data);
         setStatus('done', 'Transcription complete.');
     } catch (err) {
         setStatus('error', 'Error: ' + err.message);
@@ -165,25 +172,69 @@ async function sendRecording() {
 }
 
 // ── Transcript rendering ──────────────────────────────────────────────
-// Shape comes from OpenAi4oResponse: { text, usage }
+// Shape comes from OpenAiTranscribeResponse: { text, usage }
 function renderTranscript(data) {
-    const usage = data.usage ?? {};
-    const tokens = (n) => (n ?? 0).toLocaleString();
-    document.getElementById('metadata').innerHTML =
-        `<code>gpt-4o-mini-transcribe</code> · token usage · ` +
-        `<code>input ${tokens(usage.input_tokens)}</code> · ` +
-        `<code>output ${tokens(usage.output_tokens)}</code> · ` +
-        `<code>total ${tokens(usage.total_tokens)}</code>`;
-
     const p = document.createElement('p');
     p.className = 'transcript-text';
     p.textContent = (data.text ?? '').trim();
     document.getElementById('transcript').replaceChildren(p);
 }
 
+// ── Usage view ────────────────────────────────────────────────────────
+// Everything known about the last transcribe request
+let lastRequest = null;	// { data, sentBytes, elapsedMs }
+
+const usageList = document.getElementById('usageList');
+
+// Appends one <dt>/<dd> pair; `sub` dims it as a breakdown row
+function addUsageRow(label, value, sub) {
+    const dt = document.createElement('dt');
+    const dd = document.createElement('dd');
+    dt.textContent = label;
+    dd.textContent = value;
+    if (sub) { dt.className = 'sub'; dd.className = 'sub'; }
+    usageList.append(dt, dd);
+}
+
+// Section heading, spans both grid columns
+function addUsageHeading(text) {
+    const h = document.createElement('div');
+    h.className = 'usage-head';
+    h.textContent = text;
+    usageList.append(h);
+}
+
+function renderUsage() {
+    usageList.replaceChildren();
+    if (!lastRequest) {
+        addUsageRow('status', 'No request in this session yet.');
+        return;
+    }
+
+    const { data, sentBytes, elapsedMs } = lastRequest;
+    const usage = data.usage ?? {};
+    const details = usage.input_token_details ?? {};
+    const words = (data.text ?? '').trim().split(/\s+/).filter(Boolean).length;
+
+    addUsageHeading('Last request');
+    addUsageRow('model', MODEL);
+    addUsageRow('provider', 'openai');
+    addUsageRow('audio sent', formatBytes(sentBytes));
+    addUsageRow('response time', formatDuration(elapsedMs));
+    addUsageRow('transcript', `${formatTokens(words)} words`);
+
+    addUsageHeading('Token usage');
+    addUsageRow('input tokens', formatTokens(usage.input_tokens));
+    addUsageRow('audio', formatTokens(details.audio_tokens), true);
+    addUsageRow('text', formatTokens(details.text_tokens), true);
+    addUsageRow('output tokens', formatTokens(usage.output_tokens));
+    addUsageRow('total tokens', formatTokens(usage.total_tokens));
+}
+
 function resetToIdle() {
-    document.getElementById('metadata').replaceChildren();
     document.getElementById('transcript').replaceChildren();
+    usageList.replaceChildren();
+    lastRequest = null;
     setStatus('idle', '');
 }
 
@@ -192,7 +243,6 @@ function resetToIdle() {
 const serverStatusEl = document.getElementById('serverStatus');
 const serverDot = document.getElementById('serverDot');
 const serverConnEl = document.getElementById('serverConn');
-const serverStartEl = document.getElementById('serverStart');
 const serverUptimeEl = document.getElementById('serverUptime');
 
 const offlineBanner = document.getElementById('offlineBanner');
@@ -224,7 +274,6 @@ function setServerOffline() {
     serverStatusEl.classList.add('down');
     serverDot.className = 'sdot down';
     serverConnEl.textContent = 'Offline';
-    serverStartEl.textContent = '--';
     serverUptimeEl.textContent = '--';
 }
 
@@ -235,8 +284,45 @@ function renderServerStatus(data) {
     serverStatusEl.classList.add('up');
     serverDot.className = 'sdot up';
     serverConnEl.textContent = 'Connected';
-    serverStartEl.textContent = formatStartTime(data.utcServerStart);
     serverUptimeEl.textContent = formatUptime(data.serverUptimeSeconds ?? 0);
+}
+
+// ── Global token usage footer ─────────────────────────────────────
+// Polls StatsController's global stats endpoint on the same tick as uptime.
+const tokenStatsEl = document.getElementById('tokenStats');
+const statsInputEl = document.getElementById('statsInput');
+const statsOutputEl = document.getElementById('statsOutput');
+const statsTotalEl = document.getElementById('statsTotal');
+
+let statsInFlight = false;	// same skip-a-tick guard the uptime poll uses
+
+// Shape comes from GlobalStatsResponse: { inputTokens, outputTokens }
+function renderTokenStats(data) {
+    const input = Number(data.inputTokens ?? 0);
+    const output = Number(data.outputTokens ?? 0);
+    tokenStatsEl.classList.remove('stale');
+    statsInputEl.textContent = formatTokens(input);
+    statsOutputEl.textContent = formatTokens(output);
+    statsTotalEl.textContent = formatTokens(input + output);
+}
+
+// Keep the last known counts on screen, just dimmed
+function setTokenStatsStale() {
+    tokenStatsEl.classList.add('stale');
+}
+
+async function pollStats() {
+    if (statsInFlight) return;
+    statsInFlight = true;
+    try {
+        const res = await fetch(STATS_URL, { cache: 'no-store' });
+        if (!res.ok) throw new Error(String(res.status));
+        renderTokenStats(await res.json());
+    } catch {
+        setTokenStatsStale();
+    } finally {
+        statsInFlight = false;
+    }
 }
 
 // Poll uptime/connection on set interval
@@ -254,8 +340,13 @@ async function pollUptime() {
     }
 }
 
-pollUptime();
-setInterval(pollUptime, UPTIME_POLL_MS);
+function poll() {
+    pollUptime();
+    pollStats();
+}
+
+poll();
+setInterval(poll, UPTIME_POLL_MS);
 
 // ── Interaction handlers ───────────────────────────────────────────
 recordBtn.addEventListener('click', async () => {
@@ -273,3 +364,12 @@ document.getElementById('discardBtn').addEventListener('click', clearRecording);
 document.getElementById('oversizedResetBtn').addEventListener('click', clearRecording);
 document.getElementById('errorResetBtn').addEventListener('click', resetToIdle);
 document.getElementById('newSessionBtn').addEventListener('click', resetToIdle);
+document.getElementById('usageNewSessionBtn').addEventListener('click', resetToIdle);
+
+document.getElementById('usageBtn').addEventListener('click', () => {
+    renderUsage();
+    setStatus('usage', 'Transcription complete.');
+});
+document.getElementById('backToTranscriptBtn').addEventListener('click', () => {
+    setStatus('done', 'Transcription complete.');
+});

@@ -11,20 +11,25 @@
 <body>
     <div class="container">
 
-        <!-- Server bar for showing uptime on regular poll -->
+        <!-- Server bar: global token usage left, uptime right, both polled on the same tick -->
         <header class="top-header" id="serverStatus">
             <div class="header-left">
-                <span class="label">Transcribe</span>
-                <span class="conn">
-                    <span class="sdot" id="serverDot"></span>
-                    <span id="serverConn">Connecting</span>
-                </span>
+                <span class="label">Token usage |</span>
+                <div class="server-status" id="tokenStats">
+                    <span class="meta">
+                        <span class="meta-key">input</span>
+                        <span class="meta-val" id="statsInput">--</span>
+                    </span>
+                        <span class="meta-key">output</span>
+                        <span class="meta-val" id="statsOutput">--</span>
+                    </span>
+                    <span class="meta">
+                        <span class="meta-key">total</span>
+                        <span class="meta-val" id="statsTotal">--</span>
+                    </span>
+                </div>
             </div>
             <div class="server-status">
-                <span class="meta">
-                    <span class="meta-key">started</span>
-                    <span class="meta-val" id="serverStart">--</span>
-                </span>
                 <span class="meta">
                     <span class="meta-key">uptime</span>
                     <span class="meta-val" id="serverUptime">--</span>
@@ -34,7 +39,7 @@
 
         <!-- Shown only while the uptime poll cannot reach the server -->
         <div class="offline-banner" id="offlineBanner" hidden>
-            Not connected — the server is unreachable. Recording is disabled until it returns.
+            Disconnected — the server is unreachable.
         </div>
 
         <!-- Exactly one .view is visible at a time, chosen by app.js setting `hidden` on all the others. -->
@@ -50,7 +55,7 @@
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="18" x2="12" y2="22"/></svg>
                         </button>
                     </div>
-                    <div class="stage-title" id="idleTitle">Click to start transcribing</div>
+                    <div class="stage-title" id="idleTitle">Click to record audio</div>
                 </div>
 
                 <!-- recording -->
@@ -89,10 +94,19 @@
 
                 <!-- done / transcript -->
                 <div class="view transcript" data-view="done" hidden>
-                    <div id="metadata"></div>
                     <div id="transcript" class="transcript-scroll"></div>
                     <div class="stage-footer">
-                        <button class="ghost-btn" id="newSessionBtn" type="button">New session</button>
+                        <button class="ghost-btn" id="usageBtn" type="button">See metrics</button>
+                        <button class="primary-btn compact" id="newSessionBtn" type="button">New session</button>
+                    </div>
+                </div>
+
+                <!-- usage — full metrics for the last transcription -->
+                <div class="view transcript" data-view="usage" hidden>
+                    <dl class="usage-list" id="usageList"></dl>
+                    <div class="stage-footer">
+                        <button class="ghost-btn" id="backToTranscriptBtn" type="button">Back</button>
+                        <button class="primary-btn compact" id="usageNewSessionBtn" type="button">New session</button>
                     </div>
                 </div>
 
@@ -105,10 +119,18 @@
             </div>
         </div>
 
-        <!-- Hidden while offline — the banner is the only status that matters then -->
-        <div class="status-line" id="statusLine">
-            <span class="sdot" id="statusDot"></span>
-            <span id="statusText">Ready</span>
+        <div class="bottom-bar">
+            <!-- Connection state, always on show -->
+            <span class="conn">
+                <span class="sdot" id="serverDot"></span>
+                <span id="serverConn">Connecting</span>
+            </span>
+
+            <!-- Hidden while offline — the banner is the only status that matters then -->
+            <div class="status-line" id="statusLine">
+                <span class="sdot" id="statusDot"></span>
+                <span id="statusText">Ready</span>
+            </div>
         </div>
     </div>
 
