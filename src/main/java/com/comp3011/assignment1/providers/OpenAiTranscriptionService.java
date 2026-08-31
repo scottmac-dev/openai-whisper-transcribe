@@ -1,7 +1,7 @@
 package com.comp3011.assignment1.providers;
 
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
@@ -20,25 +20,19 @@ import com.comp3011.assignment1.responses.TranscriptionResult;
  * 
  * TranscriptionService backed by the real OpenAI /audio/transcriptions endpoint.
  *
- * Requires $OPENAI_API_KEY at runtime. Without it the key falls back to STUB_KEY
- * and transcribe() returns a canned response.
+ * Only wired in when OPENAI_API_KEY is actually present. 
+ * With no key Spring picks LocalStubTranscriptionService instead.
  */
 @Service
-@ConditionalOnProperty("openai.api-key")
+@ConditionalOnExpression("!'${openai.api-key:}'.isBlank()")
 public class OpenAiTranscriptionService implements TranscriptionService {
 
-    // Default from application.properties when $OPENAI_API_KEY is unset
-    private static final String STUB_KEY = "stub-key";
-        
     // Springboot inbuilt REST API client
     private final RestClient restClient;
 
     // Transcription model, from openai.model
     private final String model;
     
-    // True when running without a real key — transcribe() returns canned data
-    private final boolean stubbed;
-
     // Global token metrics
     private final TokenCounterProvider tokenCounter;
 
@@ -56,11 +50,6 @@ public class OpenAiTranscriptionService implements TranscriptionService {
 
         this.model = model;
     	this.tokenCounter = tokenCounter;
-    	
-    	this.stubbed = STUB_KEY.equals(apiKey);
-    	if (stubbed) {
-    		System.out.println("No OPENAI_API_KEY set — serving stubbed transcriptions.");
-    	}
     	
         /*
          * Built from the injected builder rather than the static RestClient.builder().
@@ -90,10 +79,6 @@ public class OpenAiTranscriptionService implements TranscriptionService {
      *  */
     @Override
     public TranscriptionResult transcribe(byte[] audio, String filename) {
-    	
-    	if (stubbed) {
-    		return countTokens(toResult(OpenAiTranscribeResponse.stub()));
-    	}
     	
     	// Wrap the bytes so the encoder sends them as a named file part. 
     	// Endpoint infers format off the extension, so the filename xyz.webm has to be available.

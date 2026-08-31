@@ -21,20 +21,4 @@ package com.comp3011.assignment1.responses;
 public record OpenAiTranscribeResponse(
         String text,
         OpenAiUsage usage
-) {
-	/**
-	 * Canned response used when no real OpenAI API key is configured
-	 */
-	public static OpenAiTranscribeResponse stub() {
-		return new OpenAiTranscribeResponse(
-				"This is a stubbed transcription. Set OPENAI_API_KEY to call the real API.",
-				new OpenAiUsage(
-						"tokens",
-						1200,	
-						new OpenAiInputTokenDetails(16, 1184),
-				        480,
-				        1680
-				)
-		);
-	}
-}
+) {}
