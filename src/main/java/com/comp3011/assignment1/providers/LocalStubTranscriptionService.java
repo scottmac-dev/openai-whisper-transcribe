@@ -37,8 +37,7 @@ public class LocalStubTranscriptionService implements TranscriptionService {
     @Override
     public TranscriptionResult transcribe(byte[] audio, String filename) {
         log.debug("Stubbed transcription for {} ({} bytes)", filename, audio == null ? 0 : audio.length);
-        tokenCounter.addInputTokens(STUB_USAGE.inputTokens());
-        tokenCounter.addOutputTokens(STUB_USAGE.outputTokens());
+        tokenCounter.add(STUB_USAGE.inputTokens(), STUB_USAGE.outputTokens());
         return new TranscriptionResult(STUB_TEXT, STUB_USAGE);
     }
 }

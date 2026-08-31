@@ -1,5 +1,7 @@
 package com.comp3011.assignment1.providers;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.core.io.ByteArrayResource;
@@ -26,6 +28,8 @@ import com.comp3011.assignment1.responses.TranscriptionResult;
 @Service
 @ConditionalOnExpression("!'${openai.api-key:}'.isBlank()")
 public class OpenAiTranscriptionService implements TranscriptionService {
+
+    private static final Logger log = LoggerFactory.getLogger(OpenAiTranscriptionService.class);
 
     // Springboot inbuilt REST API client
     private final RestClient restClient;
@@ -98,11 +102,21 @@ public class OpenAiTranscriptionService implements TranscriptionService {
         body.add("language", "en");
         
         // POST to endpoint, decode the provider's shape, then map straight out of it
-        return countTokens(toResult(restClient.post()
+        long startedAt = System.nanoTime();
+        TranscriptionResult result = countTokens(toResult(restClient.post()
                 .contentType(MediaType.MULTIPART_FORM_DATA)
                 .body(body)
                 .retrieve()
                 .body(OpenAiTranscribeResponse.class)));
+
+        // Basic oneline log per successful request for tracing and debugging
+        // No sensitive data logged, just length, time and token count
+        log.info("STT ok model={} bytes={} ms={} inputTokens={} outputTokens={}",
+                model, audio.length, (System.nanoTime() - startedAt) / 1_000_000,
+                result.usage() == null ? 0 : result.usage().inputTokens(),
+                result.usage() == null ? 0 : result.usage().outputTokens());
+
+        return result;
     }
 
     /*
@@ -128,8 +142,7 @@ public class OpenAiTranscriptionService implements TranscriptionService {
     // Feed the call's usage into the global token counter
     private TranscriptionResult countTokens(TranscriptionResult result) {
         if (result != null && result.usage() != null) {
-            tokenCounter.addInputTokens(result.usage().inputTokens());
-            tokenCounter.addOutputTokens(result.usage().outputTokens());
+            tokenCounter.add(result.usage().inputTokens(), result.usage().outputTokens());
         }
         return result;
     }
