@@ -76,41 +76,38 @@ function setStatus(status, text) {
 let mediaRecorder = null;
 let stream = null;
 let chunks = [];
-let blob = null;
 
 async function startRecording() {
-    chunks = [];	// audio input buffer
-    blob = null;	// binary blob containing .webm file
-	
-	// First attempt at this prompts for mic access permissions
+    chunks = [];    // audio input buffer
+
+    // First attempt at this prompts for mic access permissions
     stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-	
-	// MediaRecorder API for direct to .webm conversion
+
+    // MediaRecorder API for direct to .webm conversion
     mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
-	
-    mediaRecorder.ondataavailable = (e) => chunks.push(e.data);	// push to buffer
-	
-	// On stop handler validates and formats to .webm binary
+
+    mediaRecorder.ondataavailable = (e) => chunks.push(e.data);  // push to buffer
+
+    // Stopping ends the session: the final chunk is packed into a .webm blob
+    // and uploaded straight away, no confirmation step in between.
     mediaRecorder.onstop = () => {
-        blob = new Blob(chunks, { type: 'audio/webm' });
-		
-		// Handle size maximum
+        const blob = new Blob(chunks, { type: 'audio/webm' });
+        chunks = [];
+
+        // Too big to upload — the only path that does not reach the server
         if (blob.size > MAX_FILE_SIZE) {
-            setStatus('oversized', `Recording saved (${formatBytes(blob.size)}). Exceeds 25 MB limit, please try again.`);
+            setStatus('oversized', `Recording stopped (${formatBytes(blob.size)}). Exceeds 25 MB limit, please try again.`);
         } else {
-			// Before sending, show basic meta data and prompt confirmation
-            document.getElementById('reviewMeta').textContent =
-                `${formatBytes(blob.size)} · openai · ${MODEL}`;
-            setStatus('review', `Recording saved (${formatBytes(blob.size)})`);
+            sendRecording(blob);
         }
     };
-	
-	// Start recording
+
+    // Start recording
     mediaRecorder.start();
     setStatus('recording', 'Recording...');
 }
 
-// Onstop moves us on to the review view once the final chunk lands
+// Releases the mic, onstop then handles the upload
 function stopRecording() {
     if (mediaRecorder) {
         mediaRecorder.stop();
@@ -122,39 +119,29 @@ function stopRecording() {
     }
 }
 
-// Clear buffered audio
-function clearRecording() {
-    chunks = [];
-    blob = null;
-    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-        mediaRecorder.stop();
+// Guarded entry point for every path that starts a recording
+async function beginRecording() {
+    if (serverOnline === false) return;
+    try {
+        await startRecording();
+    } catch (err) {
+        setStatus('error', `Error: ${err.message}`);
     }
-    mediaRecorder = null;
-    if (stream) {
-        stream.getTracks().forEach((t) => t.stop());
-        stream = null;
-    }
-    setStatus('idle', 'Recording cleared.');
 }
 
 // Send to server for STT processing
-async function sendRecording() {
+async function sendRecording(blob) {
     if (serverOnline === false) {
         setStatus('error', 'Not connected to server.');
         return;
     }
-    if (!blob || blob.size > MAX_FILE_SIZE) {
-        setStatus('error', 'Nothing valid to send.');
-        return;
-    }
     setStatus('transcribing', 'Transcribing...');
-	
-	// Append .webm binary
+
+    // Append .webm binary
     const body = new FormData();
     body.append('audio', blob, 'recording.webm');
-	
-	
-	// Send to server, timing the round trip for the usage view
+
+    // Send to server, timing the round trip for the usage view
     const sentBytes = blob.size;
     const startedAt = performance.now();
     try {
@@ -167,8 +154,6 @@ async function sendRecording() {
     } catch (err) {
         setStatus('error', 'Error: ' + err.message);
     }
-    blob = null;
-    chunks = [];
 }
 
 // ── Transcript rendering ──────────────────────────────────────────────
@@ -231,11 +216,20 @@ function renderUsage() {
     addUsageRow('total tokens', formatTokens(usage.total_tokens));
 }
 
+// Drops the last transcription and returns to the record screen
 function resetToIdle() {
     document.getElementById('transcript').replaceChildren();
     usageList.replaceChildren();
     lastRequest = null;
+    chunks = [];
     setStatus('idle', '');
+}
+
+// The transcript/usage "New session" buttons: clear, then record again straight
+// away. Offline it stops at idle, where beginRecording's guard leaves it.
+function newSession() {
+    resetToIdle();
+    beginRecording();
 }
 
 // ── Server status header ──────────────────────────────────────────
@@ -249,7 +243,6 @@ const offlineBanner = document.getElementById('offlineBanner');
 const statusLine = document.getElementById('statusLine');
 const idleTitle = document.getElementById('idleTitle');
 const recordBtn = document.getElementById('recordBtn');
-const sendBtn = document.getElementById('sendBtn');
 
 let uptimeInFlight = false;	// skip a tick rather than stacking slow requests
 let serverOnline = null;	// null until the first poll resolves, then a bool
@@ -264,7 +257,6 @@ function applyReachability(online) {
     stageGlow.classList.toggle('offline', !online);
 
     recordBtn.disabled = !online;
-    sendBtn.disabled = !online;
     idleTitle.textContent = online ? 'Click to start transcribing' : 'Not connected to server';
 }
 
@@ -349,22 +341,15 @@ poll();
 setInterval(poll, UPTIME_POLL_MS);
 
 // ── Interaction handlers ───────────────────────────────────────────
-recordBtn.addEventListener('click', async () => {
-    if (serverOnline === false) return;
-    try {
-        await startRecording();
-    } catch (err) {
-        setStatus('error', `Error: ${err.message}`);
-    }
-});
-
+// idle → recording → (auto upload) → done, with New session looping back round
+recordBtn.addEventListener('click', beginRecording);
 document.getElementById('stopBtn').addEventListener('click', stopRecording);
-sendBtn.addEventListener('click', sendRecording);
-document.getElementById('discardBtn').addEventListener('click', clearRecording);
-document.getElementById('oversizedResetBtn').addEventListener('click', clearRecording);
+document.getElementById('newSessionBtn').addEventListener('click', newSession);
+document.getElementById('usageNewSessionBtn').addEventListener('click', newSession);
+
+// Dead ends, both drop back to idle rather than straight into a recording
+document.getElementById('oversizedResetBtn').addEventListener('click', resetToIdle);
 document.getElementById('errorResetBtn').addEventListener('click', resetToIdle);
-document.getElementById('newSessionBtn').addEventListener('click', resetToIdle);
-document.getElementById('usageNewSessionBtn').addEventListener('click', resetToIdle);
 
 document.getElementById('usageBtn').addEventListener('click', () => {
     renderUsage();

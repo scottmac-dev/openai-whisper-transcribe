@@ -55,7 +55,7 @@
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="18" x2="12" y2="22"/></svg>
                         </button>
                     </div>
-                    <div class="stage-title" id="idleTitle">Click to record audio</div>
+                    <div class="stage-title" id="idleTitle">Click to start transcribing</div>
                 </div>
 
                 <!-- recording -->
@@ -67,17 +67,7 @@
                         </button>
                     </div>
                     <div class="wave"><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
-                    <div class="stage-sub">Click to stop</div>
-                </div>
-
-                <!-- review before uploading and allow discard to avoid server round trip -->
-                <div class="view" data-view="review" hidden>
-                    <div class="stage-title">Ready to send</div>
-                    <div class="stage-sub" id="reviewMeta"></div>
-                    <div class="review-actions">
-                        <button class="ghost-btn" id="discardBtn" type="button">Discard</button>
-                        <button class="primary-btn" id="sendBtn" type="button">Send</button>
-                    </div>
+                    <div class="stage-sub">Click to stop and transcribe</div>
                 </div>
 
                 <!-- transcribing — request is in flight -->
@@ -92,12 +82,15 @@
                     <button class="ghost-btn" id="oversizedResetBtn" type="button">Clear</button>
                 </div>
 
-                <!-- done / transcript -->
+                <!-- done / transcript — "New session" starts the next recording -->
                 <div class="view transcript" data-view="done" hidden>
                     <div id="transcript" class="transcript-scroll"></div>
                     <div class="stage-footer">
                         <button class="ghost-btn" id="usageBtn" type="button">See metrics</button>
-                        <button class="primary-btn compact" id="newSessionBtn" type="button">New session</button>
+                        <button class="primary-btn compact icon-btn" id="newSessionBtn" type="button" aria-label="Start a new recording">
+                            New session
+							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="18" x2="12" y2="22"/></svg>
+                        </button>
                     </div>
                 </div>
 
@@ -106,7 +99,10 @@
                     <dl class="usage-list" id="usageList"></dl>
                     <div class="stage-footer">
                         <button class="ghost-btn" id="backToTranscriptBtn" type="button">Back</button>
-                        <button class="primary-btn compact" id="usageNewSessionBtn" type="button">New session</button>
+                        <button class="primary-btn compact icon-btn" id="usageNewSessionBtn" type="button" aria-label="Start a new recording">
+                            New session
+							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="18" x2="12" y2="22"/></svg>
+                        </button>
                     </div>
                 </div>
 
