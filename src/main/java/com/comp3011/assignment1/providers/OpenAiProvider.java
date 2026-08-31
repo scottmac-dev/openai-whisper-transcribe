@@ -25,11 +25,7 @@ import com.comp3011.assignment1.responses.OpenAiTranscribeResponse;
 @Component
 @ConditionalOnProperty("openai.api-key")
 public class OpenAiProvider {
-	
-	// Static API endpoint and model choice, no other models or providers supported
-    private static final String TRANSCRIBE_BASE_URL = "https://api.openai.com/v1/audio/transcriptions";
-    private static final String MODEL = "gpt-4o-mini-transcribe";
-    
+
     // Size limit for OpenAI audio file upload (25 MB).
     public static final long MAX_FILE_SIZE = 25L * 1024 * 1024;
     
@@ -38,6 +34,9 @@ public class OpenAiProvider {
         
     // Springboot inbuilt REST API client
     private final RestClient restClient;
+
+    // Transcription model, from openai.model
+    private final String model;
     
     // True when running without a real key — transcribe() returns canned data
     private final boolean stubbed;
@@ -45,9 +44,18 @@ public class OpenAiProvider {
     // Global token metrics
     private final TokenCounterProvider tokenCounter;
 
-    // Extract API key on instantiation
-    public OpenAiProvider(@Value("${openai.api-key}") String apiKey, TokenCounterProvider tokenCounter) {
+    /*
+     * Endpoint, model and API key all arrive from application.properties.
+     *
+     * The endpoint is a property rather than a constant so a test can point the
+     * upstream at a local stub without calling and paying the real OpenAI service.
+     */
+    public OpenAiProvider(@Value("${openai.base-url}") String baseUrl,
+            @Value("${openai.model}") String model,
+            @Value("${openai.api-key}") String apiKey,
+            TokenCounterProvider tokenCounter) {
 
+        this.model = model;
     	this.tokenCounter = tokenCounter;
     	
     	// TODO: remove
@@ -58,7 +66,7 @@ public class OpenAiProvider {
     	
     	// Create REST client using transcription API endpoint + api key in auth header
         this.restClient = RestClient.builder()
-                .baseUrl(TRANSCRIBE_BASE_URL)
+                .baseUrl(baseUrl)
                 .defaultHeader("Authorization", "Bearer " + apiKey)
                 .build();
     }
@@ -98,7 +106,7 @@ public class OpenAiProvider {
         MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
         
         body.add("file", resource);
-        body.add("model", MODEL);
+        body.add("model", model);
         body.add("response_format", "json");
         body.add("language", "en");
         

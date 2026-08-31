@@ -2,7 +2,7 @@
 
 // ── Constants ─────────────────────────────────────────────────────────
 const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25 MB matching OpenAiProvider.MAX_FILE_SIZE
-const MODEL = 'gpt-4o-mini-transcribe';	// matching OpenAiProvider.MODEL
+const MODEL = 'gpt-4o-mini-transcribe';	// matching openai.model in application.properties
 const TRANSCRIBE_URL = '/api/v1/transcribe';	// STT endpoint
 const UPTIME_URL = '/api/v1/admin/uptime';		// admin uptime endpoint
 const STATS_URL = '/api/v1/global/stats';		// global token usage endpoint
