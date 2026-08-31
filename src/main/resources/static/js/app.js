@@ -1,7 +1,7 @@
 'use strict';
 
 // ── Constants ─────────────────────────────────────────────────────────
-const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25 MB matching OpenAiProvider.MAX_FILE_SIZE
+const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25 MB matching TranscriptionService.MAX_FILE_SIZE
 const MODEL = 'gpt-4o-mini-transcribe';	// matching openai.model in application.properties
 const TRANSCRIBE_URL = '/api/v1/transcribe';	// STT endpoint
 const UPTIME_URL = '/api/v1/admin/uptime';		// admin uptime endpoint
@@ -158,7 +158,7 @@ async function sendRecording(blob) {
 }
 
 // ── Transcript rendering ──────────────────────────────────────────────
-// Shape comes from OpenAiTranscribeResponse: { text, usage }
+// Shape comes from TranscriptionResult: { text, usage }
 function renderTranscript(data) {
     const p = document.createElement('p');
     p.className = 'transcript-text';
@@ -199,7 +199,6 @@ function renderUsage() {
 
     const { data, sentBytes, elapsedMs } = lastRequest;
     const usage = data.usage ?? {};
-    const details = usage.input_token_details ?? {};
     const words = (data.text ?? '').trim().split(/\s+/).filter(Boolean).length;
 
     addUsageHeading('Last request');
@@ -210,11 +209,11 @@ function renderUsage() {
     addUsageRow('transcript', `${formatTokens(words)} words`);
 
     addUsageHeading('Token usage');
-    addUsageRow('input tokens', formatTokens(usage.input_tokens));
-    addUsageRow('audio', formatTokens(details.audio_tokens), true);
-    addUsageRow('text', formatTokens(details.text_tokens), true);
-    addUsageRow('output tokens', formatTokens(usage.output_tokens));
-    addUsageRow('total tokens', formatTokens(usage.total_tokens));
+    addUsageRow('input tokens', formatTokens(usage.inputTokens));
+    addUsageRow('audio', formatTokens(usage.audioTokens), true);
+    addUsageRow('text', formatTokens(usage.textTokens), true);
+    addUsageRow('output tokens', formatTokens(usage.outputTokens));
+    addUsageRow('total tokens', formatTokens(usage.totalTokens));
 }
 
 // Drops the last transcription and returns to the record screen

@@ -1,34 +1,32 @@
 package com.comp3011.assignment1.providers;
 
-import java.io.IOException;
-
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.MediaType;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClient;
-import org.springframework.web.multipart.MultipartFile;
 
+import com.comp3011.assignment1.responses.OpenAiInputTokenDetails;
 import com.comp3011.assignment1.responses.OpenAiTranscribeResponse;
+import com.comp3011.assignment1.responses.OpenAiUsage;
+import com.comp3011.assignment1.responses.TokenUsage;
+import com.comp3011.assignment1.responses.TranscriptionResult;
 
 /**
  * OpenAI transcription provider.
+ * 
+ * TranscriptionService backed by the real OpenAI /audio/transcriptions endpoint.
  *
- * Uses the /audio/transcriptions endpoint with verbose_json for rich meta data return.
- *
- * Requires $OPENAI_API_KEY environment variable provided at runtime. Without it
- * the key falls back to STUB_KEY and transcribe() returns a canned response.
+ * Requires $OPENAI_API_KEY at runtime. Without it the key falls back to STUB_KEY
+ * and transcribe() returns a canned response.
  */
-@Component
+@Service
 @ConditionalOnProperty("openai.api-key")
-public class OpenAiProvider {
+public class OpenAiTranscriptionService implements TranscriptionService {
 
-    // Size limit for OpenAI audio file upload (25 MB).
-    public static final long MAX_FILE_SIZE = 25L * 1024 * 1024;
-    
     // Default from application.properties when $OPENAI_API_KEY is unset
     private static final String STUB_KEY = "stub-key";
         
@@ -50,7 +48,7 @@ public class OpenAiProvider {
      * The endpoint is a property rather than a constant so a test can point the
      * upstream at a local stub without calling and paying the real OpenAI service.
      */
-    public OpenAiProvider(RestClient.Builder restClientBuilder,
+    public OpenAiTranscriptionService(RestClient.Builder restClientBuilder,
             @Value("${openai.base-url}") String baseUrl,
             @Value("${openai.model}") String model,
             @Value("${openai.api-key}") String apiKey,
@@ -59,7 +57,6 @@ public class OpenAiProvider {
         this.model = model;
     	this.tokenCounter = tokenCounter;
     	
-    	// TODO: remove
     	this.stubbed = STUB_KEY.equals(apiKey);
     	if (stubbed) {
     		System.out.println("No OPENAI_API_KEY set — serving stubbed transcriptions.");
@@ -77,7 +74,7 @@ public class OpenAiProvider {
     }
     
     /*
-     * Uploads file to OpenAI transcription endpoint
+     * Uploads audio file bytes to OpenAI transcription endpoint
      * 
      * Expected request format:
      * 	- Authorization: Bearer $API_KEY
@@ -89,21 +86,21 @@ public class OpenAiProvider {
      * Accepted audio files: mp3, mp4, mpeg, mpga, wav, webm, m4a
      * Browser recording does webm using MediaRecorder 
      * 
-     * Available reponse formats: text, json, verbose_json, srt, vtt
-     * verbose_json will give the most meta data to work with
+     * Available reponse formats: text, json, srt, vtt
      *  */
-    public OpenAiTranscribeResponse transcribe(MultipartFile audio) throws IOException {
+    @Override
+    public TranscriptionResult transcribe(byte[] audio, String filename) {
     	
-    	// TODO: remove
     	if (stubbed) {
-    		return countTokens(OpenAiTranscribeResponse.stub());
+    		return countTokens(toResult(OpenAiTranscribeResponse.stub()));
     	}
     	
-    	// Convert file to byte array resource for embedding into request body
-        ByteArrayResource resource = new ByteArrayResource(audio.getBytes()) {
+    	// Wrap the bytes so the encoder sends them as a named file part. 
+    	// Endpoint infers format off the extension, so the filename xyz.webm has to be available.
+        ByteArrayResource resource = new ByteArrayResource(audio) {
             @Override
             public String getFilename() {
-                return audio.getOriginalFilename();
+                return filename;
             }
         };
     	
@@ -115,21 +112,41 @@ public class OpenAiProvider {
         body.add("response_format", "json");
         body.add("language", "en");
         
-        // POST to endpoint, extract return type into response class
-        return countTokens(restClient.post()
+        // POST to endpoint, decode the provider's shape, then map straight out of it
+        return countTokens(toResult(restClient.post()
                 .contentType(MediaType.MULTIPART_FORM_DATA)
                 .body(body)
                 .retrieve()
-                .body(OpenAiTranscribeResponse.class));
+                .body(OpenAiTranscribeResponse.class)));
     }
 
-    // Feed the response's usage block into the global token counter
-    private OpenAiTranscribeResponse countTokens(OpenAiTranscribeResponse res) {
-        if (res != null && res.usage() != null) {
-            tokenCounter.addInputTokens(res.usage().input_tokens());
-            tokenCounter.addOutputTokens(res.usage().output_tokens());
+    /*
+     * Adapter that maps OpenAIs response JSON into internal TranscriptionResult representation
+     */
+    private TranscriptionResult toResult(OpenAiTranscribeResponse res) {
+        if (res == null) {
+            return null;
         }
-        return res;
+        OpenAiUsage usage = res.usage();
+        if (usage == null) {
+            return new TranscriptionResult(res.text(), null);
+        }
+        OpenAiInputTokenDetails details = usage.input_token_details();
+        return new TranscriptionResult(res.text(), new TokenUsage(
+                usage.input_tokens(),
+                details == null ? 0L : details.audio_tokens(),
+                details == null ? 0L : details.text_tokens(),
+                usage.output_tokens(),
+                usage.total_tokens()));
+    }
+
+    // Feed the call's usage into the global token counter
+    private TranscriptionResult countTokens(TranscriptionResult result) {
+        if (result != null && result.usage() != null) {
+            tokenCounter.addInputTokens(result.usage().inputTokens());
+            tokenCounter.addOutputTokens(result.usage().outputTokens());
+        }
+        return result;
     }
 
 
