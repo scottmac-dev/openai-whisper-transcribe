@@ -45,9 +45,9 @@ application.properties (src/main/resources).
 
 @Value("${openai.api-key}") on a constructor param pulls the value in.
 
-Property syntax supports env fallback: openai.api-key=${OPENAI_API_KEY:stub-key} = env var if set, otherwise "stub-key"
+Property syntax supports env fallback: openai.api-key=${OPENAI_API_KEY:} = env var if set, otherwise empty.
 
-@ConditionalOnProperty("openai.api-key") on OpenAiProvider = only register this bean if that property exists.
+Empty default rather than a fake value = no placeholder credential sitting in the repo.
 
 == Bootstrap HTTP & REST Helpers ==
 
@@ -102,3 +102,66 @@ Requires server.shutdown=graceful in application.properties.
 
 src/main/resources/static/ is served at the web root automatically.
 index.html → GET /. No controller, no config.
+
+
+== Conditional Beans ==
+
+@ConditionalOnExpression("..") = only register this bean if the expression is true.
+
+Picks the STT impl at startup:
+    OpenAiTranscriptionService     @ConditionalOnExpression("!'${openai.api-key:}'.isBlank()")
+    LocalStubTranscriptionService  @ConditionalOnExpression("'${openai.api-key:}'.isBlank()")
+
+
+== Interfaces + DI (swapping implementations) ==
+
+Inject the interface, never the concrete class:
+    public TransciptionController(TranscriptionService svc)
+
+Spring resolves constructor params by TYPE, so whichever impl is registered gets wired in.
+Real OpenAI impl at runtime, stub in tests, controller unchanged.
+
+Constants can live on the interface (TranscriptionService.MAX_FILE_SIZE) so callers never
+have to import a concrete impl.
+
+Keep servlet types out of the interface (byte[] + filename, not MultipartFile) = impls can
+be tested with no web context.
+
+== Global Exception Handling ==
+
+@RestControllerAdvice = one class handling exceptions for ALL controllers.
+
+extends ResponseEntityExceptionHandler = inherits Spring's mapping of framework exceptions
+to status codes (405, 415, 413, 400 missing part, 404 unknown path).
+
+Override handleExceptionInternal(...) = re-render all of those in your own body shape.
+
+@ExceptionHandler(SomeException.class) on a method = handle that type yourself.
+Most specific match wins.
+
+Anything Spring rejects BEFORE the handler runs never reaches a controller
+try/catch, so without an advice those come back in Spring's default error format.
+
+Ours to map:
+    ResourceAccessException      = timeout / host unreachable    → 504
+    RestClientResponseException  = upstream answered 4xx/5xx     → 502
+    MultipartException           = malformed multipart body      → 400
+    Exception                    = backstop                      → 500
+
+== Request Mapping: consumes ==
+
+@PostMapping(value = "/transcribe", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+
+Makes media type part of the MAPPING, so a non-multipart body is rejected as 415 before the
+handler runs. Without it a JSON body reaches the multipart resolver and surfaces as a 400.
+
+== Auto-configured Builders ==
+
+Inject RestClient.Builder rather than calling the static RestClient.builder():
+
+    public OpenAiTranscriptionService(RestClient.Builder builder, ...) {
+        this.restClient = builder.baseUrl(url).defaultHeader(...).build();
+    }
+
+The static factory bypasses Boot auto-configuration, so anything in spring.http.client.*
+(timeouts etc) would never reach the client.

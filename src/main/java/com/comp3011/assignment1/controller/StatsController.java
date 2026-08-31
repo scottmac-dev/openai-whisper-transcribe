@@ -1,17 +1,12 @@
 package com.comp3011.assignment1.controller;
 
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.comp3011.assignment1.providers.TokenCounterProvider;
-import com.comp3011.assignment1.responses.ErrorResponse;
 import com.comp3011.assignment1.responses.GlobalStatsResponse;
-import com.comp3011.assignment1.responses.UptimeResponse;
-
-import jakarta.servlet.http.HttpServletRequest;
 
 /**
  * Controller for global statistics
@@ -40,14 +35,10 @@ public class StatsController {
        Endpoint: /api/v1/global/stats
      *  */
     @GetMapping("/stats")
-    public ResponseEntity<?> uptime(HttpServletRequest req) {
-    	try {
-    		GlobalStatsResponse res = tokenCounter.getTokenStats();
-    		return ResponseEntity.ok(res);
-    	} catch (RuntimeException e) {
-    		return ErrorResponse.entity(HttpStatus.INTERNAL_SERVER_ERROR,
-    				"An unexpected server error occurred.", req.getRequestURI());
-    	}
+    public ResponseEntity<?> globalStats() {
+    	// ApiExceptionHandler renders the 500 case in the documented schema.
+    	GlobalStatsResponse res = tokenCounter.getTokenStats();
+    	return ResponseEntity.ok(res);
     }
 
 }

@@ -16,7 +16,6 @@ import jakarta.servlet.http.HttpServletRequest;
 
 /**
  * Controller for admin system information
- * 
  */
 @RestController
 @RequestMapping("/api/v1/admin")
@@ -42,14 +41,10 @@ public class AdminController {
        Endpoint: api/v1/admin/uptime
      *  */
     @GetMapping("/uptime")
-    public ResponseEntity<?> uptime(HttpServletRequest req) {
-    	try {
-    		UptimeResponse res = uptimeProvider.uptimeResponse();
-    		return ResponseEntity.ok(res);
-    	} catch (RuntimeException e) {
-    		return ErrorResponse.entity(HttpStatus.INTERNAL_SERVER_ERROR,
-    				"An unexpected server error occurred.", req.getRequestURI());
-    	}
+    public ResponseEntity<?> uptime() {
+    	// ApiExceptionHandler renders the 500 case in the documented schema.
+    	UptimeResponse res = uptimeProvider.uptimeResponse();
+    	return ResponseEntity.ok(res);
     }
     
 
@@ -72,21 +67,19 @@ public class AdminController {
     @PostMapping("/shutdown")
     public ResponseEntity<?> shutdown(HttpServletRequest req) {
     	
-    	try {
-	    	// 409 path for duplicate in progress attempt
-	        if (!uptimeProvider.requestShutdown()) {
-	            return ErrorResponse.entity(HttpStatus.CONFLICT,
-	            		"Graceful shutdown is already in progress.", req.getRequestURI());
-	        }
-	    	
-	        return ResponseEntity
-	                .status(HttpStatus.ACCEPTED)
-	                .body(new ShutdownResponse(
-	                        "Graceful shutdown requested."
-	                ));
-    	} catch (RuntimeException e) {
-    		return ErrorResponse.entity(HttpStatus.INTERNAL_SERVER_ERROR,
-    				"An unexpected server error occurred.", req.getRequestURI());
-    	}
+    	// 409 path for duplicate in progress attempt. 
+    	// Stays in the controller rather than being mapped automatically as it is a
+    	// edge case condition which should be explicit.
+        if (!uptimeProvider.requestShutdown()) {
+            return ErrorResponse.entity(HttpStatus.CONFLICT,
+            		"Graceful shutdown is already in progress.", req.getRequestURI());
+        }
+    	
+    	// ApiExceptionHandler renders the 500 case in the documented schema.
+        return ResponseEntity
+                .status(HttpStatus.ACCEPTED)
+                .body(new ShutdownResponse(
+                        "Graceful shutdown requested."
+                ));
     }
 }
