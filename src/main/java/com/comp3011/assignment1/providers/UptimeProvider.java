@@ -11,51 +11,53 @@ import org.springframework.stereotype.Service;
 
 import com.comp3011.assignment1.responses.UptimeResponse;
 
-
-/*
- * Responsible for server up time state
-        serverUptimeSeconds:
-          type: number
-          format: double
-          minimum: 0
-          description: Floating point number of seconds between utcServerStart and utcNow.
-          examples:
-            - 9000.5
- *  */
+/**
+ * Server lifecycle state: when the process started, how long it has been up, and the
+ * one-way transition into shutdown.
+ */
 @Service
 public class UptimeProvider {
+
     private final ConfigurableApplicationContext context;
     private final Instant serverStartTimeUTC = Instant.now();
-    
+
     // Prevent duplicate shutdown requests
     private final AtomicBoolean shutdownRequested = new AtomicBoolean(false);
-    
-    public UptimeProvider( ConfigurableApplicationContext context) {
-    	this.context = context;
+
+    public UptimeProvider(ConfigurableApplicationContext context) {
+        this.context = context;
     }
-    
-    /* UTC timestamp at which the server process started, encoded as RFC 3339. */
+
+    /** UTC timestamp at which the server process started, encoded as RFC 3339. */
     private String startTime() {
-    	return serverStartTimeUTC.toString();
+        return serverStartTimeUTC.toString();
     }
-    
-    /* Current UTC timestamp at response generation time, encoded as RFC 3339. */
+
+    /** Current UTC timestamp at response generation time, encoded as RFC 3339. */
     private String now() {
-    	return Instant.now().toString();
+        return Instant.now().toString();
     }
-    
-    /* Floating point number of seconds between utcServerStart and utcNow. */
+
+    /** Floating point number of seconds between utcServerStart and utcNow. */
     private double uptime() {
-    	Duration uptimeDuration = Duration.between(serverStartTimeUTC, Instant.now());
-    	return uptimeDuration.getSeconds() + (uptimeDuration.getNano() / 1_000_000_000.0);
+        Duration uptimeDuration = Duration.between(serverStartTimeUTC, Instant.now());
+        return uptimeDuration.getSeconds() + (uptimeDuration.getNano() / 1_000_000_000.0);
     }
-    
-    /* Serialised to UptimeResponse for API return */
+
+    /** Serialised to UptimeResponse for API return. */
     public UptimeResponse uptimeResponse() {
-    	return new UptimeResponse(this.startTime(), this.now(), this.uptime());
+        return new UptimeResponse(this.startTime(), this.now(), this.uptime());
     }
-    
-    /* Concurrency safe shutdown request */
+
+    /**
+     * Concurrency safe shutdown request. The CAS means only the first caller wins; every
+     * later one gets false and the controller turns that into a 409.
+     *
+     * The exit runs off the request thread, otherwise the context would close while the
+     * response was still being written.
+     *
+     * @return true if this call started the shutdown, false if one was already running
+     */
     public boolean requestShutdown() {
 
         if (!shutdownRequested.compareAndSet(false, true)) {
@@ -72,5 +74,5 @@ public class UptimeProvider {
 
         return true;
     }
-    
+
 }

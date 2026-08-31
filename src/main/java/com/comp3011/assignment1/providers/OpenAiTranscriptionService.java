@@ -18,12 +18,10 @@ import com.comp3011.assignment1.responses.TokenUsage;
 import com.comp3011.assignment1.responses.TranscriptionResult;
 
 /**
- * OpenAI transcription provider.
- * 
  * TranscriptionService backed by the real OpenAI /audio/transcriptions endpoint.
  *
- * Only wired in when OPENAI_API_KEY is actually present. 
- * With no key Spring picks LocalStubTranscriptionService instead.
+ * The only class that knows OpenAI exists. Only wired in when OPENAI_API_KEY is present;
+ * with no key Spring picks LocalStubTranscriptionService instead.
  */
 @Service
 @ConditionalOnExpression("!'${openai.api-key:}'.isBlank()")
@@ -36,15 +34,14 @@ public class OpenAiTranscriptionService implements TranscriptionService {
 
     // Transcription model, from openai.model
     private final String model;
-    
+
     // Global token metrics
     private final TokenCounterProvider tokenCounter;
 
-    /*
-     * Endpoint, model and API key all arrive from application.properties.
-     *
-     * The endpoint is a property rather than a constant so a test can point the
-     * upstream at a local stub without calling and paying the real OpenAI service.
+    /**
+     * Endpoint, model and API key all arrive from application.properties. The endpoint is a
+     * property rather than a constant so a test can point it at a local stub instead of
+     * calling, and paying for, the real service.
      */
     public OpenAiTranscriptionService(RestClient.Builder restClientBuilder,
             @Value("${openai.base-url}") String baseUrl,
@@ -53,54 +50,50 @@ public class OpenAiTranscriptionService implements TranscriptionService {
             TokenCounterProvider tokenCounter) {
 
         this.model = model;
-    	this.tokenCounter = tokenCounter;
-    	
-        /*
-         * Built from the injected builder rather than the static RestClient.builder().
-         * The static factory bypasses Boot's auto-configuration, so the configured timeouts
-         * would never reach the client
-         */
+        this.tokenCounter = tokenCounter;
+
+        // Built from the injected builder, not the static RestClient.builder(). The static
+        // factory bypasses Boot auto-configuration, so the configured timeouts would never
+        // reach the client.
         this.restClient = restClientBuilder
                 .baseUrl(baseUrl)
                 .defaultHeader("Authorization", "Bearer " + apiKey)
                 .build();
     }
-    
-    /*
-     * Uploads audio file bytes to OpenAI transcription endpoint
-     * 
-     * Expected request format:
-     * 	- Authorization: Bearer $API_KEY
-     * 	- Content-Type: multipart/form-data
-     * 	- file: /path/to/audio.webm
-     * 	- model: gpt-4o-transcribe
-     * 	- response_format: verbose_json
-     * 
-     * Accepted audio files: mp3, mp4, mpeg, mpga, wav, webm, m4a
-     * Browser recording does webm using MediaRecorder 
-     * 
-     * Available reponse formats: text, json, srt, vtt
-     *  */
+
+    /**
+     * Uploads audio file bytes to the OpenAI transcription endpoint.
+     *
+     * Request format:
+     *     Authorization: Bearer $API_KEY
+     *     Content-Type:  multipart/form-data
+     *     file:          the audio bytes, named so the extension survives
+     *     model:         gpt-4o-mini-transcribe
+     *     response_format: json
+     *
+     * Accepted audio: mp3, mp4, mpeg, mpga, wav, webm, m4a. The browser records webm via
+     * MediaRecorder. Available response formats: text, json, srt, vtt.
+     */
     @Override
     public TranscriptionResult transcribe(byte[] audio, String filename) {
-    	
-    	// Wrap the bytes so the encoder sends them as a named file part. 
-    	// Endpoint infers format off the extension, so the filename xyz.webm has to be available.
+
+        // Wrap the bytes so the encoder sends them as a named file part. The endpoint infers
+        // format from the extension, so the filename xyz.webm has to be available.
         ByteArrayResource resource = new ByteArrayResource(audio) {
             @Override
             public String getFilename() {
                 return filename;
             }
         };
-    	
-    	// Build API request to transcription endpoint
+
+        // Build API request to transcription endpoint
         MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
-        
+
         body.add("file", resource);
         body.add("model", model);
         body.add("response_format", "json");
         body.add("language", "en");
-        
+
         // POST to endpoint, decode the provider's shape, then map straight out of it
         long startedAt = System.nanoTime();
         TranscriptionResult result = countTokens(toResult(restClient.post()
@@ -109,8 +102,9 @@ public class OpenAiTranscriptionService implements TranscriptionService {
                 .retrieve()
                 .body(OpenAiTranscribeResponse.class)));
 
-        // Basic oneline log per successful request for tracing and debugging
-        // No sensitive data logged, just length, time and token count
+        // One line per successful call, for tracing and debugging. Never the key, the audio
+        // bytes or the transcript - only size, timing and cost. Failures are not logged here,
+        // ApiExceptionHandler already logs them once on the way out.
         log.info("STT ok model={} bytes={} ms={} inputTokens={} outputTokens={}",
                 model, audio.length, (System.nanoTime() - startedAt) / 1_000_000,
                 result.usage() == null ? 0 : result.usage().inputTokens(),
@@ -119,8 +113,11 @@ public class OpenAiTranscriptionService implements TranscriptionService {
         return result;
     }
 
-    /*
-     * Adapter that maps OpenAIs response JSON into internal TranscriptionResult representation
+    /**
+     * Adapter mapping OpenAI's response JSON onto the internal TranscriptionResult.
+     *
+     * Tolerant of missing pieces: a 200 with no usage block is unusual but not an error, and
+     * should not cost the caller their transcript.
      */
     private TranscriptionResult toResult(OpenAiTranscribeResponse res) {
         if (res == null) {
@@ -139,13 +136,12 @@ public class OpenAiTranscriptionService implements TranscriptionService {
                 usage.total_tokens()));
     }
 
-    // Feed the call's usage into the global token counter
+    /** Feeds the call's usage into the global token counter. */
     private TranscriptionResult countTokens(TranscriptionResult result) {
         if (result != null && result.usage() != null) {
             tokenCounter.add(result.usage().inputTokens(), result.usage().outputTokens());
         }
         return result;
     }
-
 
 }

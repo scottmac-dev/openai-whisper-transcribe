@@ -23,11 +23,12 @@ public class LocalStubTranscriptionService implements TranscriptionService {
     private static final String STUB_TEXT =
             "This is a stubbed transcription. Set OPENAI_API_KEY to call the real API.";
 
+    // Plausible counts, so the stats endpoint and usage panel still move during development.
     private static final TokenUsage STUB_USAGE = new TokenUsage(1200, 1184, 16, 480, 1680);
 
     private final TokenCounterProvider tokenCounter;
-    
-    // Log to console when starting without valid key in environment.
+
+    /** Warns on startup, since this bean existing at all means there is no key configured. */
     public LocalStubTranscriptionService(TokenCounterProvider tokenCounter) {
         this.tokenCounter = tokenCounter;
         log.warn("No OPENAI_API_KEY set - serving stubbed transcriptions. "

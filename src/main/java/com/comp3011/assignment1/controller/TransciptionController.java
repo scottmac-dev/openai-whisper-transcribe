@@ -17,47 +17,51 @@ import com.comp3011.assignment1.responses.TranscriptionResult;
 
 import jakarta.servlet.http.HttpServletRequest;
 
-
 /**
- * Controller for handling STT transcription via OpenAI API
+ * Audio upload and speech-to-text transcription.
  */
 @RestController
 @RequestMapping("/api/v1/")
 public class TransciptionController {
-	
+
     // Injected as the interface so a test can use a stub in its place without the real service.
     private final TranscriptionService transcriptionService;
-    
+
     public TransciptionController(TranscriptionService transcriptionService) {
         this.transcriptionService = transcriptionService;
     }
-    
+
     /**
-     * Submits an audio file for transcription, returning verbose JSON response
-     * 
-     * Expects audio file payload attached as audio parameter
+     * POST /api/v1/transcribe
+     *
+     * Takes the recording as multipart field "audio" and returns the transcript with its
+     * token usage. consumes= makes the media type part of the mapping, so a non-multipart
+     * body is rejected as 415 before this method runs.
+     *
+     * 200 transcribed, 400 no audio, 413 too large, 415 wrong media type,
+     * 502 provider error, 504 provider timeout, 500 unexpected server error.
      */
     @PostMapping(value = "/transcribe", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> transcribe(@RequestParam("audio") MultipartFile audio,
             HttpServletRequest req) throws IOException {
-        
-    	// No file payload
-    	if (audio.isEmpty()) {
+
+        // No file payload
+        if (audio.isEmpty()) {
             return ErrorResponse.entity(HttpStatus.BAD_REQUEST,
-            		"No audio file was supplied.", req.getRequestURI());
+                    "No audio file was supplied.", req.getRequestURI());
         }
-    	
-    	// File too large
+
+        // File too large
         if (audio.getSize() > TranscriptionService.MAX_FILE_SIZE) {
             return ErrorResponse.entity(HttpStatus.CONTENT_TOO_LARGE,
-            		"Audio file exceeds the 25 MB upload limit.", req.getRequestURI());
+                    "Audio file exceeds the 25 MB upload limit.", req.getRequestURI());
         }
-        
-        // Extract bytes with getBytes() so provider only operates on bytes format
-    	// ApiExceptionHandler renders failure cases for 504, 502 and 500 case in the documented schema.
+
+        // getBytes() unwraps the servlet type here so the service layer only sees bytes.
+        // ApiExceptionHandler renders the 502, 504 and 500 cases in the documented schema.
         TranscriptionResult res =
-        		transcriptionService.transcribe(audio.getBytes(), audio.getOriginalFilename());
+                transcriptionService.transcribe(audio.getBytes(), audio.getOriginalFilename());
         return ResponseEntity.ok(res);
     }
-    
+
 }

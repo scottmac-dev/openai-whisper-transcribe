@@ -6,27 +6,18 @@ import java.time.temporal.ChronoUnit;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
-/*
- * Standard JSON error response returned when an operation fails.
- * 
- * Expected format:
-	  timestamp: string
-	  format: date-time
-	  example: "2026-07-14T03:45:30Z"
-	  
-	  status: integer
-	  format: int32 (400-599)
-	  example: 500
-	  
-	  error: string
-	  example: "Internal Server Error"
-	  
-	  message: string
-	  example: "An unexpected server error occurred."
-	  
-	  path: string
-	  example: "/api/v1/admin/uptime"
- *  */
+/**
+ * Standard JSON error body returned when an operation fails, per the YAML spec.
+ *
+ * The spec sets additionalProperties: false, so these five fields are exactly the shape -
+ * nothing may be added to it.
+ *
+ * @param timestamp UTC time the error was generated, RFC 3339, e.g. "2026-07-14T03:45:30Z"
+ * @param status    HTTP status code, 400-599
+ * @param error     HTTP reason phrase, e.g. "Internal Server Error"
+ * @param message   human-readable description of the failure
+ * @param path      request path that produced the error, e.g. "/api/v1/admin/uptime"
+ */
 public record ErrorResponse(
         String timestamp,
         int status,
@@ -34,19 +25,19 @@ public record ErrorResponse(
         String message,
         String path
 ) {
-	/* Builds the body, taking the reason phrase straight from the status */
-	public static ErrorResponse of(HttpStatus status, String message, String path) {
-		return new ErrorResponse(
-				Instant.now().truncatedTo(ChronoUnit.SECONDS).toString(),
-				status.value(),
-				status.getReasonPhrase(),
-				message,
-				path
-		);
-	}
-	
-	/* Same, wrapped ready to return from a controller */
-	public static ResponseEntity<ErrorResponse> entity(HttpStatus status, String message, String path) {
-		return ResponseEntity.status(status).body(of(status, message, path));
-	}
+    /** Builds the body, taking the reason phrase straight from the status. */
+    public static ErrorResponse of(HttpStatus status, String message, String path) {
+        return new ErrorResponse(
+                Instant.now().truncatedTo(ChronoUnit.SECONDS).toString(),
+                status.value(),
+                status.getReasonPhrase(),
+                message,
+                path
+        );
+    }
+
+    /** Same, wrapped ready to return from a controller. */
+    public static ResponseEntity<ErrorResponse> entity(HttpStatus status, String message, String path) {
+        return ResponseEntity.status(status).body(of(status, message, path));
+    }
 }

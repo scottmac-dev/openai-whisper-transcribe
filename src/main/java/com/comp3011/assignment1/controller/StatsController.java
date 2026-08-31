@@ -9,36 +9,31 @@ import com.comp3011.assignment1.providers.TokenCounterProvider;
 import com.comp3011.assignment1.responses.GlobalStatsResponse;
 
 /**
- * Controller for global statistics
- * 
+ * Global service statistics.
  */
 @RestController
 @RequestMapping("/api/v1/global")
 public class StatsController {
-	
-	TokenCounterProvider tokenCounter;
-	
-	public StatsController(TokenCounterProvider tcp) {
-		this.tokenCounter = tcp;
-	}
-	
-    /* 
-     * Returns cumulative input and output token usage for the speech-to-text
-       Cloud service since the current UTC server start. Counters reset when
-      the server process restarts.
-       
-       
-       Responses:
-       	200 Global token usage statistics were retrieved successfully.
-       	500 An unexpected server error occurred.
-       
-       Endpoint: /api/v1/global/stats
-     *  */
+
+    private final TokenCounterProvider tokenCounter;
+
+    public StatsController(TokenCounterProvider tcp) {
+        this.tokenCounter = tcp;
+    }
+
+    /**
+     * GET /api/v1/global/stats
+     *
+     * Cumulative input and output token usage for the STT service since server start.
+     * Counters reset when the process restarts.
+     *
+     * 200 statistics retrieved, 500 unexpected server error.
+     */
     @GetMapping("/stats")
     public ResponseEntity<?> globalStats() {
-    	// ApiExceptionHandler renders the 500 case in the documented schema.
-    	GlobalStatsResponse res = tokenCounter.getTokenStats();
-    	return ResponseEntity.ok(res);
+        // ApiExceptionHandler renders the 500 case in the documented schema.
+        GlobalStatsResponse res = tokenCounter.getTokenStats();
+        return ResponseEntity.ok(res);
     }
 
 }

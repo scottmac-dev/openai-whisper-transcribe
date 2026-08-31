@@ -20,6 +20,10 @@ import com.comp3011.assignment1.responses.ErrorResponse;
 /**
  * Renders every failure as the ErrorResponse schema from the YAML spec.
  * Messages are written here, never taken from the exception, so no internal detail leaks.
+ *
+ * ResponseEntityExceptionHandler already maps the framework exceptions (405, 415, 413, 404,
+ * missing part). Do not add an @ExceptionHandler for one of those - the type ends up mapped
+ * twice and the context fails to start with "Ambiguous @ExceptionHandler method mapped".
  */
 @RestControllerAdvice
 public class ApiExceptionHandler extends ResponseEntityExceptionHandler {

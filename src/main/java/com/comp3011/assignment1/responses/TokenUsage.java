@@ -3,10 +3,9 @@ package com.comp3011.assignment1.responses;
 /**
  * Token usage for a single transcription.
  *
- * Internal flattened response format no provider nested JSON.
- * 
- * Provider responses are mapped onto internal representation to decouple 
- * backend from specific provider API.
+ * Flattened internal format with no provider nesting: OpenAI reports the audio/text split
+ * inside input_token_details, which carries no meaning for us, so both are hoisted alongside
+ * the total they break down.
  *
  * @param inputTokens  total tokens consumed by the audio submitted
  * @param audioTokens  the audio portion of inputTokens
