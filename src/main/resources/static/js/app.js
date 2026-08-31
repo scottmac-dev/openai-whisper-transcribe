@@ -41,6 +41,7 @@ function describeFailure(status) {
     if (status === 400) return 'No audio was received by the server.';
     if (status === 413) return 'Recording exceeds the 25 MB upload limit.';
     if (status === 502) return 'Transcription provider is unavailable.';
+    if (status === 504) return 'Transcription timed out. Please try again.';
     return `Request failed: ${status}`;
 }
 

@@ -50,7 +50,8 @@ public class OpenAiProvider {
      * The endpoint is a property rather than a constant so a test can point the
      * upstream at a local stub without calling and paying the real OpenAI service.
      */
-    public OpenAiProvider(@Value("${openai.base-url}") String baseUrl,
+    public OpenAiProvider(RestClient.Builder restClientBuilder,
+            @Value("${openai.base-url}") String baseUrl,
             @Value("${openai.model}") String model,
             @Value("${openai.api-key}") String apiKey,
             TokenCounterProvider tokenCounter) {
@@ -64,8 +65,12 @@ public class OpenAiProvider {
     		System.out.println("No OPENAI_API_KEY set — serving stubbed transcriptions.");
     	}
     	
-    	// Create REST client using transcription API endpoint + api key in auth header
-        this.restClient = RestClient.builder()
+        /*
+         * Built from the injected builder rather than the static RestClient.builder().
+         * The static factory bypasses Boot's auto-configuration, so the configured timeouts
+         * would never reach the client
+         */
+        this.restClient = restClientBuilder
                 .baseUrl(baseUrl)
                 .defaultHeader("Authorization", "Bearer " + apiKey)
                 .build();

@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -56,6 +57,11 @@ public class TransciptionController {
         try {
         	OpenAiTranscribeResponse res = provider.transcribe(audio);
         	return ResponseEntity.ok(res);
+        } catch (ResourceAccessException e) {
+        	// Upstream never answered inside the timeout budget.
+        	// Or an unreachable host, which fails the same way.
+        	return ErrorResponse.entity(HttpStatus.GATEWAY_TIMEOUT,
+        			"Transcription provider did not respond in time.", req.getRequestURI());
         } catch (RestClientResponseException  e) {
         	// Upstream failure
         	return ErrorResponse.entity(HttpStatus.BAD_GATEWAY,
