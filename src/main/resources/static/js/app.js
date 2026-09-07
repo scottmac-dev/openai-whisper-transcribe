@@ -17,6 +17,22 @@ const REQUEST_TIMEOUT_MS = 30000;
 // iOS browser is WebKit and takes neither, so mp4 is provided as fallback.
 const AUDIO_MIME_TYPES = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4'];
 
+// Capture tuned for speech-to-text pipeline
+const AUDIO_CONSTRAINTS = {
+    channelCount: 1,			// mono chanel, single voice signal
+    sampleRate: 16000,			// reduce from default 48kHz -> 16kHz
+    echoCancellation: true,		// remove speaker feedback into microphone
+    noiseSuppression: true,		// attempt to reduce background interference
+    autoGainControl: true,		// attempt to adjust gain for consistent volume
+};
+
+// Encode opus at 24kbps, shrinks upload size of compressed result
+const AUDIO_BITS_PER_SECOND = 24000;
+
+// Dont wait until recording ends to process audio buffer, break into 1 second chunks 
+// and process in chunks for streamlined latency.
+const RECORDER_TIMESLICE_MS = 1000;
+
 // ── Helpers ───────────────────────────────────────────────────────────
 function formatBytes(bytes) {
     if (bytes === 0) return '0 B';
@@ -157,16 +173,22 @@ async function startRecording() {
     recorderFailed = false;
 
     // First attempt at this prompts for mic access permissions
-    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    stream = await navigator.mediaDevices.getUserMedia({ audio: AUDIO_CONSTRAINTS });
 
     const preferred = pickMimeType();
-    mediaRecorder = new MediaRecorder(stream, preferred ? { mimeType: preferred } : {});
+    const options = { audioBitsPerSecond: AUDIO_BITS_PER_SECOND };
+	
+    if (preferred) options.mimeType = preferred;
+    mediaRecorder = new MediaRecorder(stream, options);
 
-    // Read the type back rather than trusting the request: the browser may pick something
-    // else, and both the blob and the filename have to agree with what it chose.
+    // Read the type back rather than trusting the request as the browser may pick something
+    // else and both the blob and the filename have to agree on chosen mime type.
     recordingMimeType = mediaRecorder.mimeType || preferred || 'audio/webm';
 
-    mediaRecorder.ondataavailable = (e) => chunks.push(e.data);  // push to buffer
+    mediaRecorder.ondataavailable = (e) => {
+		// A timeslice can deliver empty chunks, only push if data recorded
+        if (e.data.size > 0) chunks.push(e.data);
+    };
 
     // The recorder can die mid-session if the mic is unplugged or the OS takes the device
     // away. This prevents the UI sits on the recording view forever.
@@ -202,8 +224,8 @@ async function startRecording() {
         }
     };
 
-    // Start recording
-    mediaRecorder.start();
+    // Start recording, delivering encoded data every RECORDER_TIMESLICE_MS
+    mediaRecorder.start(RECORDER_TIMESLICE_MS);
     setStatus('recording', 'Recording...');
 }
 
@@ -451,6 +473,8 @@ async function pollUptime() {
 }
 
 function poll() {
+    // Nothing on screen to update while the tab is hidden
+    if (document.hidden) return;
     pollUptime();
     pollStats();
 }
