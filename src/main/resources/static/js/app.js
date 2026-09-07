@@ -1,8 +1,8 @@
 'use strict';
 
 // ── Constants ─────────────────────────────────────────────────────────
-const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25 MB matching TranscriptionService.MAX_FILE_SIZE
-const MODEL = 'gpt-4o-mini-transcribe';	// matching openai.model in application.properties
+const MAX_FILE_SIZE = 25 * 1024 * 1024; 		// 25 MB matching TranscriptionService.MAX_FILE_SIZE
+const MODEL = 'gpt-4o-mini-transcribe';			// matching openai.model in application.properties
 const TRANSCRIBE_URL = '/api/v1/transcribe';	// STT endpoint
 const UPTIME_URL = '/api/v1/admin/uptime';		// admin uptime endpoint
 const STATS_URL = '/api/v1/global/stats';		// global token usage endpoint
@@ -48,6 +48,7 @@ function describeFailure(status) {
 // ── View state ────────────────────────────────────────────────────────
 // One div is shown at a time everything else carries the `hidden` attribute.
 const views = document.querySelectorAll('.view');
+const stage = document.querySelector('.stage');
 const statusDot = document.getElementById('statusDot');
 const statusTextEl = document.getElementById('statusText');
 const stageGlow = document.getElementById('stageGlow');
@@ -150,8 +151,8 @@ async function sendRecording(blob) {
         if (!res.ok) throw new Error(describeFailure(res.status));
         const data = await res.json();
         lastRequest = { data, sentBytes, elapsedMs: performance.now() - startedAt };
-        renderTranscript(data);
         setStatus('done', 'Transcription complete.');
+        renderTranscript(data);
     } catch (err) {
         setStatus('error', 'Error: ' + err.message);
     }
@@ -257,6 +258,7 @@ function applyReachability(online) {
     stageGlow.classList.toggle('offline', !online);
 
     recordBtn.disabled = !online;
+    recordBtn.setAttribute('aria-disabled', String(!online));
     idleTitle.textContent = online ? 'Click to start transcribing' : 'Not connected to server';
 }
 
