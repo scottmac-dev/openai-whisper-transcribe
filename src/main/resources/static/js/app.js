@@ -8,6 +8,15 @@ const UPTIME_URL = '/api/v1/admin/uptime';		// admin uptime endpoint
 const STATS_URL = '/api/v1/global/stats';		// global token usage endpoint
 const UPTIME_POLL_MS = 1000;					// header/footer refresh interval
 
+// Client-side ceiling on the transcribe round trip. 
+// Deliberately above the server's 5s budget, last resort fallback for unforseen connection errors
+const REQUEST_TIMEOUT_MS = 30000;
+
+// Recording container, in preference order. 
+// Chrome and Firefox take webm/opus.
+// iOS browser is WebKit and takes neither, so mp4 is provided as fallback.
+const AUDIO_MIME_TYPES = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4'];
+
 // ── Helpers ───────────────────────────────────────────────────────────
 function formatBytes(bytes) {
     if (bytes === 0) return '0 B';
@@ -36,14 +45,55 @@ function formatUptime(seconds) {
     return days > 0 ? `${days}d ${clock}` : clock;
 }
 
-// Maps the status codes TransciptionController returns to something readable
-function describeFailure(status) {
-    if (status === 400) return 'No audio was received by the server.';
-    if (status === 413) return 'Recording exceeds the 25 MB upload limit.';
-    if (status === 502) return 'Transcription provider is unavailable.';
-    if (status === 504) return 'Transcription timed out. Please try again.';
-    return `Request failed: ${status}`;
+// Fallback wording error message per status if response doesnt fit schema.
+const FAILURE_BY_STATUS = {
+    400: 'No audio was received by the server.',
+    413: 'Recording exceeds the 25 MB upload limit.',
+    415: 'That audio format was rejected by the server.',
+    502: 'Transcription provider is unavailable.',
+    504: 'Transcription timed out. Please try again.',
+};
+
+// Try to extract ApiExceptionHandler message body which is formatted according to YAML ErrorResponse schema
+// Fallback to the mapping above if message body not provided 
+async function describeFailure(res) {
+    try {
+        const body = await res.json();
+        if (typeof body?.message === 'string' && body.message.trim()) return body.message;
+    } catch {
+        // Not JSON, or an empty body. Fall through to the status map.
+    }
+    return FAILURE_BY_STATUS[res.status] ?? `Request failed: ${res.status}`;
 }
+
+
+// Provide descriptive errors which may occur from the browser media recorder APIS
+const MIC_ERRORS = {
+    NotAllowedError: 'Microphone access was blocked. Allow it in your browser settings, then try again.',
+    NotFoundError: 'No microphone was found. Connect one and try again.',
+    NotReadableError: 'The microphone is already in use by another application.',
+    OverconstrainedError: 'No microphone matches the requested audio settings.',
+    SecurityError: 'Microphone access is not permitted on this page.',
+};
+
+function describeMicFailure(err) {
+    return MIC_ERRORS[err?.name] ?? `Microphone unavailable: ${err?.name ?? 'unknown error'}.`;
+}
+
+// getUserMedia only works in a secure browser context requiring localhost or HTTPS. 
+// Provide explicit
+function micSupportError() {
+    if (!window.isSecureContext) {
+        return 'Recording needs a secure connection. Open this page over HTTPS, or on localhost.';
+    }
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
+        return 'This browser does not support microphone recording.';
+    }
+    return null;
+}
+
+// Evaluated once - nothing it depends on changes over the life of the page.
+const micUnsupported = micSupportError();
 
 // ── View state ────────────────────────────────────────────────────────
 // One div is shown at a time everything else carries the `hidden` attribute.
@@ -78,25 +128,73 @@ function setStatus(status, text) {
 let mediaRecorder = null;
 let stream = null;
 let chunks = [];
+let recorderFailed = false;   // set by onerror so onstop cannot upload a dead session
+let recordingMimeType = '';   // what MediaRecorder actually chose, not what was asked for
+
+// Find a mime type supported by browser in preference order
+// Fallback '' which is any which should prevent error and choose any
+function pickMimeType() {
+    return AUDIO_MIME_TYPES.find((t) => MediaRecorder.isTypeSupported(t)) ?? '';
+}
+
+// The provider infers the audio format from the filename extension, not from the content type. 
+// Extension has to follow whatever the browser actually recorded.
+function extensionFor(mimeType) {
+    return mimeType.startsWith('audio/mp4') ? 'm4a' : 'webm';
+}
+
+// Stops the tracks and drops the recorder.
+function releaseMic() {
+    if (stream) {
+        stream.getTracks().forEach((t) => t.stop());
+        stream = null;
+    }
+    mediaRecorder = null;
+}
 
 async function startRecording() {
-    chunks = [];    // audio input buffer
+    chunks = [];            // audio input buffer
+    recorderFailed = false;
 
     // First attempt at this prompts for mic access permissions
     stream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
-    // MediaRecorder API for direct to .webm conversion
-    mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+    const preferred = pickMimeType();
+    mediaRecorder = new MediaRecorder(stream, preferred ? { mimeType: preferred } : {});
+	
+    // Read the type back rather than trusting the request: the browser may pick something
+    // else, and both the blob and the filename have to agree with what it chose.
+    recordingMimeType = mediaRecorder.mimeType || preferred || 'audio/webm';
 
     mediaRecorder.ondataavailable = (e) => chunks.push(e.data);  // push to buffer
 
-    // Stopping ends the session: the final chunk is packed into a .webm blob
-    // and uploaded straight away, no confirmation step in between.
+    // The recorder can die mid-session if the mic is unplugged or the OS takes the device
+    // away. This prevents the UI sits on the recording view forever.
+    mediaRecorder.onerror = (e) => {
+        recorderFailed = true;
+        releaseMic();
+        setStatus('error', `Recording failed: ${e?.error?.name ?? 'unknown error'}.`);
+    };
+
+    // Stopping ends the session, the final chunk is packed into a blob and uploaded.
     mediaRecorder.onstop = () => {
-        const blob = new Blob(chunks, { type: 'audio/webm' });
+		
+        // onerror has already put the error view up
+        if (recorderFailed) {
+            chunks = [];
+            return;
+        }
+
+        const blob = new Blob(chunks, { type: recordingMimeType });
         chunks = [];
 
-        // Too big to upload — the only path that does not reach the server
+        // Nothing captured at all
+        if (blob.size === 0) {
+            setStatus('error', 'No audio was captured. Check your microphone and try again.');
+            return;
+        }
+
+        // Too big to upload
         if (blob.size > MAX_FILE_SIZE) {
             setStatus('oversized', `Recording stopped (${formatBytes(blob.size)}). Exceeds 25 MB limit, please try again.`);
         } else {
@@ -111,23 +209,27 @@ async function startRecording() {
 
 // Releases the mic, onstop then handles the upload
 function stopRecording() {
-    if (mediaRecorder) {
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
         mediaRecorder.stop();
-        mediaRecorder = null;
     }
-    if (stream) {
-        stream.getTracks().forEach((t) => t.stop());
-        stream = null;
-    }
+    releaseMic();
 }
 
 // Guarded entry point for every path that starts a recording
 async function beginRecording() {
     if (serverOnline === false) return;
+
+    // Reported rather than silently ignored
+    if (micUnsupported) {
+        setStatus('error', micUnsupported);
+        return;
+    }
+
     try {
         await startRecording();
     } catch (err) {
-        setStatus('error', `Error: ${err.message}`);
+        releaseMic();
+        setStatus('error', describeMicFailure(err));
     }
 }
 
@@ -139,22 +241,29 @@ async function sendRecording(blob) {
     }
     setStatus('transcribing', 'Transcribing...');
 
-    // Append .webm binary
+    // Append the recorded audio under the extension matching its container
     const body = new FormData();
-    body.append('audio', blob, 'recording.webm');
+    body.append('audio', blob, `recording.${extensionFor(blob.type || recordingMimeType)}`);
 
     // Send to server, timing the round trip for the usage view
     const sentBytes = blob.size;
     const startedAt = performance.now();
     try {
-        const res = await fetch(TRANSCRIBE_URL, { method: 'POST', body });
-        if (!res.ok) throw new Error(describeFailure(res.status));
+        const res = await fetch(TRANSCRIBE_URL, {
+            method: 'POST',
+            body,
+            signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+        });
+		
+        if (!res.ok) throw new Error(await describeFailure(res));
         const data = await res.json();
         lastRequest = { data, sentBytes, elapsedMs: performance.now() - startedAt };
         setStatus('done', 'Transcription complete.');
         renderTranscript(data);
     } catch (err) {
-        setStatus('error', 'Error: ' + err.message);
+        setStatus('error', err.name === 'TimeoutError'
+            ? 'The request timed out before the server answered. Please try again.'
+            : err.message || 'The transcription request failed. Please try again.');
     }
 }
 
@@ -257,9 +366,16 @@ function applyReachability(online) {
     statusLine.hidden = !online;
     stageGlow.classList.toggle('offline', !online);
 
-    recordBtn.disabled = !online;
-    recordBtn.setAttribute('aria-disabled', String(!online));
-    idleTitle.textContent = online ? 'Click to start transcribing' : 'Not connected to server';
+    setRecordingAvailable(online && !micUnsupported,
+            micUnsupported ?? (online ? 'Click to start transcribing' : 'Not connected to server'));
+}
+
+// Single owner of the record button's enabled state and the idle view's caption.
+function setRecordingAvailable(available, caption) {
+    recordBtn.disabled = !available;
+    // disabled stops the click; aria-disabled is what a screen reader reports.
+    recordBtn.setAttribute('aria-disabled', String(!available));
+    idleTitle.textContent = caption;
 }
 
 function setServerOffline() {
@@ -341,6 +457,11 @@ function poll() {
 
 poll();
 setInterval(poll, UPTIME_POLL_MS);
+
+// Applied before the first poll lands, so an insecure context is visible immediately
+if (micUnsupported) {
+    setRecordingAvailable(false, micUnsupported);
+}
 
 // ── Interaction handlers ───────────────────────────────────────────
 // idle → recording → (auto upload) → done, with New session looping back round
