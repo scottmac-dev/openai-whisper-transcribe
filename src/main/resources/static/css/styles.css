@@ -23,9 +23,9 @@
     --accent-cyan:      #22d3ee;
     --accent-cyan-dim:  #1a7f96;
     --accent-cyan-glow: rgba(34,211,238,.16);
-	--accent-pink:       #f472b6;
-	--accent-pink-dim:   #9a3a68;
-	--accent-pink-glow:  rgba(244,114,182,.16);
+    --accent-pink:       #f472b6;
+    --accent-pink-dim:   #9a3a68;
+    --accent-pink-glow:  rgba(244,114,182,.16);
 
     --mono: 'JetBrains Mono', 'SF Mono', 'Cascadia Code', 'Fira Code', ui-monospace, monospace;
 
@@ -105,7 +105,7 @@ body {
 .conn {
     display: flex; align-items: center; gap: 0.4rem;
     font-size: 0.68rem;
-    color: var(--text-secondary);	/* matches .status-line opposite it */
+    color: var(--text-secondary);   /* matches .status-line opposite it */
 }
 .server-status .meta { display: flex; align-items: center; gap: 0.5rem; }
 .server-status .meta-key {

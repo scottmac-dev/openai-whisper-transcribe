@@ -45,7 +45,7 @@ class AdminControllerTest {
     @Test
     @DisplayName("GET uptime returns 200 with timestamps and the elapsed seconds")
     void uptimeOk() throws Exception {
-    	
+
         given(uptimeProvider.uptimeResponse()).willReturn(
                 new UptimeResponse("2026-07-14T01:15:30Z", "2026-07-14T03:45:30.500Z", 9000.5));
 
@@ -60,7 +60,7 @@ class AdminControllerTest {
     @Test
     @DisplayName("GET uptime returns the 500 error body when the provider fails")
     void uptimeServerError() throws Exception {
-    	
+
         given(uptimeProvider.uptimeResponse()).willThrow(new IllegalStateException("clock gone"));
 
         ErrorContract.assertErrorBody(mvc.perform(get(UPTIME)),
@@ -70,7 +70,7 @@ class AdminControllerTest {
     @Test
     @DisplayName("POST shutdown returns 202 when this caller starts the shutdown")
     void shutdownAccepted() throws Exception {
-    	
+
         given(uptimeProvider.requestShutdown()).willReturn(true);
 
         mvc.perform(post(SHUTDOWN))

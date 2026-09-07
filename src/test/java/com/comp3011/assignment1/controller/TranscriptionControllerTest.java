@@ -32,7 +32,7 @@ import com.comp3011.assignment1.support.ErrorContract;
  * all possible cases 200, 400, 413, 415, 502, 504, 404
  *
  */
-@WebMvcTest(TransciptionController.class)
+@WebMvcTest(TranscriptionController.class)
 class TranscriptionControllerTest {
 
     private static final String TRANSCRIBE = "/api/v1/transcribe";
@@ -67,7 +67,7 @@ class TranscriptionControllerTest {
     @Test
     @DisplayName("POST transcribe returns 200 with null usage when the provider reports none")
     void transcribeWithoutUsage() throws Exception {
-    	
+
         given(transcriptionService.transcribe(any(), anyString()))
                 .willReturn(new TranscriptionResult("hello world", null));
 

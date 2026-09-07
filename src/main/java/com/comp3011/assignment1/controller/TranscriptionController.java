@@ -21,13 +21,13 @@ import jakarta.servlet.http.HttpServletRequest;
  * Audio upload and speech-to-text transcription.
  */
 @RestController
-@RequestMapping("/api/v1/")
-public class TransciptionController {
+@RequestMapping("/api/v1")
+public class TranscriptionController {
 
     // Injected as the interface so a test can use a stub in its place without the real service.
     private final TranscriptionService transcriptionService;
 
-    public TransciptionController(TranscriptionService transcriptionService) {
+    public TranscriptionController(TranscriptionService transcriptionService) {
         this.transcriptionService = transcriptionService;
     }
 

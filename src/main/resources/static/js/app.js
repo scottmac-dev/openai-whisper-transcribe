@@ -1,12 +1,12 @@
 'use strict';
 
 // ── Constants ─────────────────────────────────────────────────────────
-const MAX_FILE_SIZE = 25 * 1024 * 1024; 		// 25 MB matching TranscriptionService.MAX_FILE_SIZE
-const MODEL = 'gpt-4o-mini-transcribe';			// matching openai.model in application.properties
-const TRANSCRIBE_URL = '/api/v1/transcribe';	// STT endpoint
-const UPTIME_URL = '/api/v1/admin/uptime';		// admin uptime endpoint
-const STATS_URL = '/api/v1/global/stats';		// global token usage endpoint
-const UPTIME_POLL_MS = 1000;					// header/footer refresh interval
+const MAX_FILE_SIZE = 25 * 1024 * 1024;         // 25 MB matching TranscriptionService.MAX_FILE_SIZE
+const MODEL = 'gpt-4o-mini-transcribe';         // matching openai.model in application.properties
+const TRANSCRIBE_URL = '/api/v1/transcribe';    // STT endpoint
+const UPTIME_URL = '/api/v1/admin/uptime';      // admin uptime endpoint
+const STATS_URL = '/api/v1/global/stats';       // global token usage endpoint
+const UPTIME_POLL_MS = 1000;                    // header/footer refresh interval
 
 // Client-side ceiling on the transcribe round trip. 
 // Deliberately above the server's 5s budget, last resort fallback for unforseen connection errors
@@ -161,7 +161,7 @@ async function startRecording() {
 
     const preferred = pickMimeType();
     mediaRecorder = new MediaRecorder(stream, preferred ? { mimeType: preferred } : {});
-	
+
     // Read the type back rather than trusting the request: the browser may pick something
     // else, and both the blob and the filename have to agree with what it chose.
     recordingMimeType = mediaRecorder.mimeType || preferred || 'audio/webm';
@@ -178,7 +178,7 @@ async function startRecording() {
 
     // Stopping ends the session, the final chunk is packed into a blob and uploaded.
     mediaRecorder.onstop = () => {
-		
+
         // onerror has already put the error view up
         if (recorderFailed) {
             chunks = [];
@@ -254,7 +254,7 @@ async function sendRecording(blob) {
             body,
             signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
         });
-		
+
         if (!res.ok) throw new Error(await describeFailure(res));
         const data = await res.json();
         lastRequest = { data, sentBytes, elapsedMs: performance.now() - startedAt };
@@ -278,7 +278,7 @@ function renderTranscript(data) {
 
 // ── Usage view ────────────────────────────────────────────────────────
 // Everything known about the last transcribe request
-let lastRequest = null;	// { data, sentBytes, elapsedMs }
+let lastRequest = null; // { data, sentBytes, elapsedMs }
 
 const usageList = document.getElementById('usageList');
 
@@ -354,8 +354,8 @@ const statusLine = document.getElementById('statusLine');
 const idleTitle = document.getElementById('idleTitle');
 const recordBtn = document.getElementById('recordBtn');
 
-let uptimeInFlight = false;	// skip a tick rather than stacking slow requests
-let serverOnline = null;	// null until the first poll resolves, then a bool
+let uptimeInFlight = false;  // skip a tick rather than stacking slow requests
+let serverOnline = null;     // null until the first poll resolves, then a bool
 
 // Gates everything that needs the server.
 function applyReachability(online) {
@@ -404,7 +404,7 @@ const statsInputEl = document.getElementById('statsInput');
 const statsOutputEl = document.getElementById('statsOutput');
 const statsTotalEl = document.getElementById('statsTotal');
 
-let statsInFlight = false;	// same skip-a-tick guard the uptime poll uses
+let statsInFlight = false;  // same skip-a-tick guard the uptime poll uses
 
 // Shape comes from GlobalStatsResponse: { inputTokens, outputTokens }
 function renderTokenStats(data) {

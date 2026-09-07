@@ -62,10 +62,10 @@ class TokenCounterConcurrencyTest {
         long adds = (long) WRITERS * ADDS_PER_WRITER;
         GlobalStatsResponse stats = counter.getTokenStats();
 
-        assertThat(stats.inputTokens()).as("lost input updates").isEqualTo(adds);	// must equal adds
-        assertThat(stats.outputTokens()).as("lost output updates").isEqualTo(adds * 2);	// must be double inputs due to 1:2 ratio
-        assertThat(detectedRace).as("stats read mid-update").isFalse();	// no race conditions detected
-        assertThat(snapshots).as("reader sampled the counter").isPositive();	// should have performed snapshots (non 0)
+        assertThat(stats.inputTokens()).as("lost input updates").isEqualTo(adds);   // must equal adds
+        assertThat(stats.outputTokens()).as("lost output updates").isEqualTo(adds * 2); // must be double inputs due to 1:2 ratio
+        assertThat(detectedRace).as("stats read mid-update").isFalse(); // no race conditions detected
+        assertThat(snapshots).as("reader sampled the counter").isPositive();    // should have performed snapshots (non 0)
     }
 
     /** Every add moves the pair 1:2 so any snapshot where output != input * 2 was a race condition. */
@@ -74,7 +74,7 @@ class TokenCounterConcurrencyTest {
             GlobalStatsResponse s = counter.getTokenStats();
             snapshots++;
             if (s.outputTokens() != s.inputTokens() * 2) {
-            	// race condition identified as output is not double input at this snapshot 
+                // race condition identified as output is not double input at this snapshot
                 detectedRace = true;
             }
         }
