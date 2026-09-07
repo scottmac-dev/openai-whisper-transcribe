@@ -498,6 +498,9 @@ document.getElementById('usageNewSessionBtn').addEventListener('click', newSessi
 document.getElementById('oversizedResetBtn').addEventListener('click', resetToIdle);
 document.getElementById('errorResetBtn').addEventListener('click', resetToIdle);
 
+document.getElementById('homeBtn').addEventListener('click', resetToIdle);
+document.getElementById('usageHomeBtn').addEventListener('click', resetToIdle);
+
 document.getElementById('usageBtn').addEventListener('click', () => {
     renderUsage();
     setStatus('usage', 'Transcription complete.');

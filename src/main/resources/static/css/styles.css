@@ -241,6 +241,8 @@ body {
 }
 .ghost-btn:hover:not(:disabled) { border-color: var(--accent-pink); color: var(--accent-pink); }
 .primary-btn:disabled, .ghost-btn:disabled { cursor: not-allowed; opacity: 0.35; }
+.home-btn { margin-right: auto; padding: 0.45rem 0.65rem; }
+.home-btn svg { width: 15px; height: 15px; }
 
 /* usage view — metrics for the last transcription */
 .usage-list {
