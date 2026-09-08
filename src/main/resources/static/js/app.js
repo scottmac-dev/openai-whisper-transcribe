@@ -146,6 +146,7 @@ let stream = null;
 let chunks = [];
 let recorderFailed = false;   // set by onerror so onstop cannot upload a dead session
 let recordingMimeType = '';   // what MediaRecorder actually chose, not what was asked for
+let recordStartedAt = 0;      // UI start/stop clock, so the recording length is an approximation
 
 // Find a mime type supported by browser in preference order
 // Fallback '' which is any which should prevent error and choose any
@@ -201,6 +202,8 @@ async function startRecording() {
     // Stopping ends the session, the final chunk is packed into a blob and uploaded.
     mediaRecorder.onstop = () => {
 
+        const recordedMs = performance.now() - recordStartedAt;
+
         // onerror has already put the error view up
         if (recorderFailed) {
             chunks = [];
@@ -220,11 +223,12 @@ async function startRecording() {
         if (blob.size > MAX_FILE_SIZE) {
             setStatus('oversized', `Recording stopped (${formatBytes(blob.size)}). Exceeds 25 MB limit, please try again.`);
         } else {
-            sendRecording(blob);
+            sendRecording(blob, recordedMs);
         }
     };
 
     // Start recording, delivering encoded data every RECORDER_TIMESLICE_MS
+    recordStartedAt = performance.now();
     mediaRecorder.start(RECORDER_TIMESLICE_MS);
     setStatus('recording', 'Recording...');
 }
@@ -256,7 +260,7 @@ async function beginRecording() {
 }
 
 // Send to server for STT processing
-async function sendRecording(blob) {
+async function sendRecording(blob, recordedMs) {
     if (serverOnline === false) {
         setStatus('error', 'Not connected to server.');
         return;
@@ -279,7 +283,7 @@ async function sendRecording(blob) {
 
         if (!res.ok) throw new Error(await describeFailure(res));
         const data = await res.json();
-        lastRequest = { data, sentBytes, elapsedMs: performance.now() - startedAt };
+        lastRequest = { data, sentBytes, recordedMs, elapsedMs: performance.now() - startedAt };
         setStatus('done', 'Transcription complete.');
         renderTranscript(data);
     } catch (err) {
@@ -330,6 +334,7 @@ function showCopyResult(message) {
     clearTimeout(copyResetTimer);
     copyBtnLabel.textContent = message;
     copyBtn.setAttribute('aria-label', message);
+    copyBtn.classList.add('is-copied');
     copyStatus.textContent = message;
     copyResetTimer = setTimeout(resetCopyButton, 2000);
 }
@@ -338,12 +343,13 @@ function resetCopyButton() {
     clearTimeout(copyResetTimer);
     copyBtnLabel.textContent = 'Copy';
     copyBtn.setAttribute('aria-label', 'Copy transcript to clipboard');
+    copyBtn.classList.remove('is-copied');
     copyStatus.textContent = '';
 }
 
 // ── Usage view ────────────────────────────────────────────────────────
 // Everything known about the last transcribe request
-let lastRequest = null; // { data, sentBytes, elapsedMs }
+let lastRequest = null; // { data, sentBytes, recordedMs, elapsedMs }
 
 const usageList = document.getElementById('usageList');
 
@@ -372,7 +378,7 @@ function renderUsage() {
         return;
     }
 
-    const { data, sentBytes, elapsedMs } = lastRequest;
+    const { data, sentBytes, recordedMs, elapsedMs } = lastRequest;
     const usage = data.usage ?? {};
     const words = (data.text ?? '').trim().split(/\s+/).filter(Boolean).length;
 
@@ -380,6 +386,8 @@ function renderUsage() {
     addUsageRow('model', MODEL);
     addUsageRow('provider', 'openai');
     addUsageRow('audio sent', formatBytes(sentBytes));
+    // Timed off the UI start/stop, not the container, so it is an approximation.
+    addUsageRow('record time', `${(recordedMs / 1000).toFixed(1)} sec`);
     addUsageRow('response time', formatDuration(elapsedMs));
     addUsageRow('transcript', `${formatTokens(words)} words`);
 

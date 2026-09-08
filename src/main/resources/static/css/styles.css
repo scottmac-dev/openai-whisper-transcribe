@@ -240,6 +240,7 @@ body {
     cursor: pointer; transition: all var(--transition);
 }
 .ghost-btn:hover:not(:disabled) { border-color: var(--accent-pink); color: var(--accent-pink); }
+.ghost-btn.is-copied { border-color: var(--accent-pink); color: var(--accent-pink); }
 .primary-btn:disabled, .ghost-btn:disabled { cursor: not-allowed; opacity: 0.35; }
 .home-btn { margin-right: auto; padding: 0.45rem 0.65rem; }
 .home-btn svg { width: 15px; height: 15px; }
