@@ -107,3 +107,19 @@ Every failure on every endpoint is rendered as the spec's `ErrorResponse` object
 7. The controller returns that record as JSON containing the transcript and its token usage
 8. The UI renders the transcript, with options to copy it, view its metadata, or start a new session
 
+## Design Decisions
+- **Dependency injection** — controllers depend on the `TranscriptionService` interface rather than an implementation, so Spring wires the OpenAI service or local/test stub interchangeably
+- **Centralised error handling** — one `@RestControllerAdvice` renders every failure as the spec's `ErrorResponse`, so no controller needs a try/catch
+- **Records for the API contract** — immutable Java records define the JSON shape, keeping the provider's wire format out of our responses
+- **Virtual threads enabled** — each request gets its own virtual thread, so hundreds of blocking STT calls run at once without a thread pool ceiling
+- **Concurrency safety** — stateless controllers, all shared state held in two atomics (token counts, shutdown latch), `server.shutdown=graceful` to let in-flight work finish, and a request ceiling set by `max-connections` rather than a thread count
+- **Credential handling** — the key is read from `OPENAI_API_KEY` environment at startup, it is never committed, logged, or returned in a response
+- **Logging** — one INFO line per STT call (model, bytes, ms, token counts), the key, audio and transcript are never logged
+- **Error handling** — the client maps each microphone and API failure to its own message, so every error state is distinct and informative
+- **Client-side optimizations** — mono capture at a 24 kbps Opus bitrate, chunked recording, and polling paused while the tab is hidden. See [`TESTING.md`](TESTING.md) for performance results
+
+## Troubleshooting
+- **No key present** — the app still starts, wiring `LocalStubTranscriptionService` to return a canned transcript instead of calling OpenAI
+- **Secure context required** — `getUserMedia` and the clipboard work only on `https://` or `localhost`, over plain HTTP recording and copying are disabled due to browser security
+- **25 MB upload limit** — OpenAI's own cap, enforced client-side, by `spring.servlet.multipart.max-file-size` and again in the controller, so all three must agree
+- **Configuration reference** — every config parameter (port, timeouts, upload limits, model, base URL) lives in `src/main/resources/application.properties`
