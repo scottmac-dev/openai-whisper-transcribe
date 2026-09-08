@@ -28,7 +28,7 @@ import com.comp3011.assignment1.providers.UptimeProvider;
 /**
  * POST /api/v1/admin/shutdown must be won by exactly one caller with no duplication.
  *
- * Confirmed with 4 concurrent calls with one 202 and three 409 status codes expected.
+ * Confirmed with 200 concurrent calls, expecting exactly one 202 and 199 409s.
  * 
  * The provider is handed a GenericApplicationContext, so the real SpringApplication.exit runs against that.
  */

@@ -63,7 +63,6 @@ credential stays out of the image.
 ./mvnw test                                    # mvnw.cmd test on Windows
 ```
 
-Runs full test suite, tests don't need `OPENAI_API_KEY` and makes no network calls as it uses stubbed providers for core functionality.
 For more information on testing coverage see [`TESTING.md`](TESTING.md).
 
 ## API Endpoints

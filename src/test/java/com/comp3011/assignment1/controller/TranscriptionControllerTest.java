@@ -1,5 +1,6 @@
 package com.comp3011.assignment1.controller;
 
+import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
@@ -74,7 +75,7 @@ class TranscriptionControllerTest {
         mvc.perform(multipart(TRANSCRIBE).file(audio()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.text").value("hello world"))
-                .andExpect(jsonPath("$.usage").doesNotExist());
+                .andExpect(jsonPath("$.usage").value(nullValue()));
     }
 
     @Test

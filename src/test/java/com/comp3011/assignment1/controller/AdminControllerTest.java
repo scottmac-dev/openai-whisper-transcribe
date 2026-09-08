@@ -49,12 +49,11 @@ class AdminControllerTest {
         given(uptimeProvider.uptimeResponse()).willReturn(
                 new UptimeResponse("2026-07-14T01:15:30Z", "2026-07-14T03:45:30.500Z", 9000.5));
 
-        String body = mvc.perform(get(UPTIME))
+        mvc.perform(get(UPTIME))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.utcServerStart").value("2026-07-14T01:15:30Z"))
                 .andExpect(jsonPath("$.utcNow").value("2026-07-14T03:45:30.500Z"))
-                .andExpect(jsonPath("$.serverUptimeSeconds").value(9000.5))
-                .andReturn().getResponse().getContentAsString();
+                .andExpect(jsonPath("$.serverUptimeSeconds").value(9000.5));
     }
 
     @Test
