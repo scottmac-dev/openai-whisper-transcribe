@@ -37,9 +37,9 @@ import com.comp3011.assignment1.support.StubTranscriptionService;
  * The API must serve more than 200 simultaneous blocking uploads without delay or failure.
  *
  * Real HTTP requests on localhost since the requirement is about simultaneous HTTP
- * requests and MockMvc never opens a socket. 
- * 
- * The stub is given a 2 second latency to stand in for a real transcription, which is what 
+ * requests and MockMvc never opens a socket.
+ *
+ * The stub is given a 2 second latency to stand in for a real transcription, which is what
  * keeps all 250 requests blocked at once.
  *
  */
@@ -49,9 +49,9 @@ class TranscriptionLoadTest {
 
     private static final Logger log = LoggerFactory.getLogger(TranscriptionLoadTest.class);
 
-    private static final int REQUESTS = 250;								// Greater than 200 requirement
-    private static final Duration STT_LATENCY = Duration.ofSeconds(2);		// Works for 2 seconds to simulate latency
-    private static final int AUDIO_BYTES = 50 * 1024;						// UX testing shows 20 sec recording ~50 KiB
+    private static final int REQUESTS = 250;                           // Greater than 200 requirement
+    private static final Duration STT_LATENCY = Duration.ofSeconds(2); // Works for 2 seconds to simulate latency
+    private static final int AUDIO_BYTES = 50 * 1024;                  // UX testing shows 20 sec recording ~50 KiB
 
     @LocalServerPort
     int port;
@@ -76,11 +76,11 @@ class TranscriptionLoadTest {
         CountDownLatch ready = new CountDownLatch(REQUESTS);
         CountDownLatch startGate = new CountDownLatch(1);
         List<Attempt> attempts = new ArrayList<>(REQUESTS);
-        
+
         // each request assigned a lightweight virtual thread
         try (ExecutorService pool = Executors.newVirtualThreadPerTaskExecutor()) {
-        	
-        	// store pending return of the 250 requests
+
+            // store pending return of the 250 requests
             List<Future<Attempt>> pending = IntStream.range(0, REQUESTS)
                     .mapToObj(i -> pool.submit(() -> {
                         ready.countDown();
@@ -120,7 +120,7 @@ class TranscriptionLoadTest {
                 .as("requests inside the controller simultaneously")
                 .isGreaterThan(200);
     }
-    
+
     /** Attempt meta data */
     private record Attempt(int status, long millis, String body) {
     }
@@ -128,7 +128,7 @@ class TranscriptionLoadTest {
     /** Mock REST client using SimpleClientHttpRequestFactory which opens a connection per exchange */
     private RestClient loadGenerator() {
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-        
+
         // budgets larger that actual implementation, will force bad response from server if exceeding
         factory.setConnectTimeout(Duration.ofSeconds(10));
         factory.setReadTimeout(Duration.ofSeconds(30));
@@ -153,12 +153,13 @@ class TranscriptionLoadTest {
                 }).toEntity(String.class);
     }
 
-    /** Mocked audio bytes, the stub doesn't actually decode so as long as the bytes size resembles
-     * an approximate pay load size it will simulate the expected req/res pattern.
-     *  */
+    /**
+     * Mocked audio bytes, the stub doesn't actually decode so as long as the payload size
+     * resembles a real recording it will simulate the expected req/res pattern.
+     */
     private static byte[] sampleAudio() {
         byte[] bytes = new byte[AUDIO_BYTES];
-        new Random(20250908L).nextBytes(bytes);		// each sample different size, better reflect real usage
+        new Random(20250908L).nextBytes(bytes); // fixed seed, so every run sends identical bytes
         return bytes;
     }
 

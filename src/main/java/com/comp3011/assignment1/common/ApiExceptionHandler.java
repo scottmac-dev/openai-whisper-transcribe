@@ -30,7 +30,7 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(ApiExceptionHandler.class);
 
-    /** Catch all internal exception and funnels through to get custom body. */
+    /** Catches every exception the parent already maps and funnels it into the shared body. */
     @Override
     protected ResponseEntity<Object> handleExceptionInternal(Exception ex, Object body,
             HttpHeaders headers, HttpStatusCode status, WebRequest request) {

@@ -28,8 +28,8 @@ import com.comp3011.assignment1.support.ErrorContract;
 
 /**
  * Regression tests for the transcription endpoint.
- * 
- * Confirming expected response shape and status for 
+ *
+ * Confirming expected response shape and status for
  * all possible cases 200, 400, 413, 415, 502, 504, 404
  *
  */

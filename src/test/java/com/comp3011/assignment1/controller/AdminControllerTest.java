@@ -21,10 +21,10 @@ import com.comp3011.assignment1.responses.UptimeResponse;
 import com.comp3011.assignment1.support.ErrorContract;
 
 /**
- * Regression tests for the admin endpoints. 
- * 
- * 
- * Confirming correct response shape and status code for 
+ * Regression tests for the admin endpoints.
+ *
+ *
+ * Confirming correct response shape and status code for
  * uptime 200/500 and shutdown 202/409/405.
  *
  */
@@ -37,7 +37,7 @@ class AdminControllerTest {
     @Autowired
     MockMvc mvc;
 
-    // UptimeProvider is mocked so the shutdown branch can be executed without 
+    // UptimeProvider is mocked so the shutdown branch can be executed without
     // the test context actually being closed.
     @MockitoBean
     UptimeProvider uptimeProvider;

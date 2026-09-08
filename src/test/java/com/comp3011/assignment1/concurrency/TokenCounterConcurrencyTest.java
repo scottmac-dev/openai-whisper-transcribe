@@ -13,12 +13,12 @@ import com.comp3011.assignment1.providers.TokenCounterProvider;
 import com.comp3011.assignment1.responses.GlobalStatsResponse;
 
 /**
- * TokenCounterProvider is the only mutable shared state on the transcription path 
+ * TokenCounterProvider is the only mutable shared state on the transcription path
  * Every concurrent STT call writes to it and /api/v1/global/stats reads it.
  *
  * Expected result: exact totals, and every one of the reader thread's snapshots respects the
- * fixed 1:2 ratio the writers add in. 
- * 
+ * fixed 1:2 ratio the writers add in.
+ *
  * Assurance: /api/v1/global/stats cannot under-report or
  * hand a client a half-applied update, however many transcriptions land at once.
  */
@@ -40,7 +40,7 @@ class TokenCounterConcurrencyTest {
     void countsExactlyAndNeverTears() throws Exception {
 
         Thread reader = Thread.ofPlatform().daemon().start(this::pollForTornReads);
-        
+
         // Without the gate, early threads finish before late ones start and the counter is not contended.
         CountDownLatch startGate = new CountDownLatch(1);
         try (ExecutorService pool = Executors.newVirtualThreadPerTaskExecutor()) {

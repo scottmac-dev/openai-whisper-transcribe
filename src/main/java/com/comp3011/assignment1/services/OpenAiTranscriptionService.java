@@ -30,7 +30,7 @@ public class OpenAiTranscriptionService implements TranscriptionService {
 
     private static final Logger log = LoggerFactory.getLogger(OpenAiTranscriptionService.class);
 
-    // Springboot inbuilt REST API client
+    // Spring Boot inbuilt REST API client
     private final RestClient restClient;
 
     // Transcription model, from openai.model
@@ -97,19 +97,21 @@ public class OpenAiTranscriptionService implements TranscriptionService {
 
         // POST to endpoint, decode the provider's shape, then map straight out of it
         long startedAt = System.nanoTime();
-        TranscriptionResult result = countTokens(toResult(restClient.post()
+        OpenAiTranscribeResponse response = restClient.post()
                 .contentType(MediaType.MULTIPART_FORM_DATA)
                 .body(body)
                 .retrieve()
-                .body(OpenAiTranscribeResponse.class)));
+                .body(OpenAiTranscribeResponse.class);
+        TranscriptionResult result = countTokens(toResult(response));
 
         // One line per successful call, for tracing and debugging. Never the key, the audio
         // bytes or the transcript - only size, timing and cost. Failures are not logged here,
         // ApiExceptionHandler already logs them once on the way out.
+        TokenUsage usage = result.usage();
         log.info("STT ok model={} bytes={} ms={} inputTokens={} outputTokens={}",
                 model, audio.length, (System.nanoTime() - startedAt) / 1_000_000,
-                result.usage() == null ? 0 : result.usage().inputTokens(),
-                result.usage() == null ? 0 : result.usage().outputTokens());
+                usage == null ? 0 : usage.inputTokens(),
+                usage == null ? 0 : usage.outputTokens());
 
         return result;
     }
@@ -144,6 +146,4 @@ public class OpenAiTranscriptionService implements TranscriptionService {
         }
         return result;
     }
-
 }
-

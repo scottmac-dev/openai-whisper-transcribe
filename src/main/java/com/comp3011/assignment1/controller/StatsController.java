@@ -17,8 +17,8 @@ public class StatsController {
 
     private final TokenCounterProvider tokenCounter;
 
-    public StatsController(TokenCounterProvider tcp) {
-        this.tokenCounter = tcp;
+    public StatsController(TokenCounterProvider tokenCounter) {
+        this.tokenCounter = tokenCounter;
     }
 
     /**
@@ -30,10 +30,9 @@ public class StatsController {
      * 200 statistics retrieved, 500 unexpected server error.
      */
     @GetMapping("/stats")
-    public ResponseEntity<?> globalStats() {
+    public ResponseEntity<GlobalStatsResponse> globalStats() {
         // ApiExceptionHandler renders the 500 case in the documented schema.
         GlobalStatsResponse res = tokenCounter.getTokenStats();
         return ResponseEntity.ok(res);
     }
-
 }

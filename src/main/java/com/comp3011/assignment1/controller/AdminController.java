@@ -23,8 +23,8 @@ public class AdminController {
 
     private final UptimeProvider uptimeProvider;
 
-    public AdminController(UptimeProvider up) {
-        this.uptimeProvider = up;
+    public AdminController(UptimeProvider uptimeProvider) {
+        this.uptimeProvider = uptimeProvider;
     }
 
     /**
@@ -36,7 +36,7 @@ public class AdminController {
      * 200 uptime retrieved, 500 unexpected server error.
      */
     @GetMapping("/uptime")
-    public ResponseEntity<?> uptime() {
+    public ResponseEntity<UptimeResponse> uptime() {
         // ApiExceptionHandler renders the 500 case in the documented schema.
         UptimeResponse res = uptimeProvider.uptimeResponse();
         return ResponseEntity.ok(res);
@@ -61,10 +61,7 @@ public class AdminController {
         }
 
         // ApiExceptionHandler renders the 500 case in the documented schema.
-        return ResponseEntity
-                .status(HttpStatus.ACCEPTED)
-                .body(new ShutdownResponse(
-                        "Graceful shutdown requested."
-                ));
+        return ResponseEntity.status(HttpStatus.ACCEPTED)
+                .body(new ShutdownResponse("Graceful shutdown requested."));
     }
 }

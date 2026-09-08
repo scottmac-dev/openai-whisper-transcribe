@@ -62,7 +62,7 @@ class ApiKeyLeakageTest {
                     .isFalse();
         }
     }
-    
+
     /** Helper validating key string not logged in responses */
     private void assertNoKey(ResponseEntity<String> response, int expectedStatus) {
         assertThat(response.getStatusCode().value()).isEqualTo(expectedStatus);
@@ -70,13 +70,13 @@ class ApiKeyLeakageTest {
                 .as("API key leaked in a %s response body", expectedStatus)
                 .doesNotContain(TEST_KEY);
     }
-    
+
     /** Test GET request */
     private ResponseEntity<String> get(RestClient client, String path) {
         return client.get().uri(path).retrieve().onStatus(s -> true, (rq, rs) -> {
         }).toEntity(String.class);
     }
-    
+
     /** Test POST request with JSON payload */
     private ResponseEntity<String> postJson(RestClient client) {
         return client.post().uri("/api/v1/transcribe")

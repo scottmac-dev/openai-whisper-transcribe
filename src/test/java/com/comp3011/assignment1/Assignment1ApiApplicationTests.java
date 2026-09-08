@@ -9,5 +9,4 @@ class Assignment1ApiApplicationTests {
     @Test
     void contextLoads() {
     }
-
 }

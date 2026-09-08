@@ -63,5 +63,4 @@ public class TranscriptionController {
                 transcriptionService.transcribe(audio.getBytes(), audio.getOriginalFilename());
         return ResponseEntity.ok(res);
     }
-
 }

@@ -30,7 +30,7 @@ public class StubTranscriptionService implements TranscriptionService {
 
     // Callers currently inside transcribe() call
     private final AtomicInteger inFlight = new AtomicInteger();
-    
+
     // The highest concurrent count reached during unit test
     // This is what can be asserted as direct evidence of holding N concurrent requests
     private final AtomicInteger maxConcurrent = new AtomicInteger();
@@ -63,7 +63,7 @@ public class StubTranscriptionService implements TranscriptionService {
             inFlight.decrementAndGet();
         }
     }
-    
+
     /**
      * A stubbed result carrying token counts, so tests assert against the same schema the client has to parse.
      */
@@ -109,7 +109,7 @@ public class StubTranscriptionService implements TranscriptionService {
     }
 
     // ---- assertion helpers ---------------------------------------------------------
-    
+
     /** Total calls made */
     public int getCallCount() {
         return callCount.get();

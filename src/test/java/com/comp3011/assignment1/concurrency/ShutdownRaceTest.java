@@ -29,7 +29,7 @@ import com.comp3011.assignment1.providers.UptimeProvider;
  * POST /api/v1/admin/shutdown must be won by exactly one caller with no duplication.
  *
  * Confirmed with 200 concurrent calls, expecting exactly one 202 and 199 409s.
- * 
+ *
  * The provider is handed a GenericApplicationContext, so the real SpringApplication.exit runs against that.
  */
 @WebMvcTest(AdminController.class)
@@ -72,10 +72,10 @@ class ShutdownRaceTest {
                     throw new AssertionError("unexpected status from shutdown: " + code);
                 }
             }
-            
+
             // only 1 202 status code return
             assertThat(accepted).as("callers that started the shutdown").isEqualTo(1);
-            
+
             // remaining get 409 response
             assertThat(conflicted).as("callers correctly rejected as duplicates")
                     .isEqualTo(CALLERS - 1);

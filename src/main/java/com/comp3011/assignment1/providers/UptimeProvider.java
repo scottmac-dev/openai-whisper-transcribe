@@ -46,7 +46,7 @@ public class UptimeProvider {
 
     /** Serialised to UptimeResponse for API return. */
     public UptimeResponse uptimeResponse() {
-        return new UptimeResponse(this.startTime(), this.now(), this.uptime());
+        return new UptimeResponse(startTime(), now(), uptime());
     }
 
     /**
@@ -74,5 +74,4 @@ public class UptimeProvider {
 
         return true;
     }
-
 }
