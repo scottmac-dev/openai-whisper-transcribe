@@ -13,11 +13,69 @@ servers:
   - url: http://localhost:8080
     description: Local development server and endpoint testing host
 tags:
+  - name: Transcription
+    description: Speech-to-text transcription of uploaded audio.
   - name: Administration
     description: Server lifecycle and administrative operations.
   - name: Global Statistics
     description: Aggregate service usage counters since UTC server start.
 paths:
+  /api/v1/transcribe:
+    post:
+      tags:
+        - Transcription
+      operationId: transcribeAudio
+      summary: Transcribe an uploaded audio recording
+      description: >
+        Accepts a single audio recording as the multipart form field "audio" and
+        returns the transcribed text together with the token usage reported by the
+        Cloud speech-to-text service for that call. The provider infers the audio
+        container format from the supplied filename extension, so the filename is
+        significant rather than cosmetic. Uploads larger than 25 MB are rejected.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - audio
+              properties:
+                audio:
+                  type: string
+                  format: binary
+                  description: Audio recording to transcribe, at most 25 MB.
+      responses:
+        "200":
+          description: The audio was transcribed successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TranscriptionResponse"
+              examples:
+                success:
+                  summary: Example transcription response
+                  value:
+                    text: "The quick brown fox jumps over the lazy dog."
+                    usage:
+                      inputTokens: 1200
+                      audioTokens: 1184
+                      textTokens: 16
+                      outputTokens: 480
+                      totalTokens: 1680
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "413":
+          $ref: "#/components/responses/ContentTooLarge"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+        "502":
+          $ref: "#/components/responses/BadGateway"
+        "504":
+          $ref: "#/components/responses/GatewayTimeout"
   /api/v1/admin/uptime:
     get:
       tags:
@@ -113,6 +171,81 @@ paths:
           $ref: "#/components/responses/InternalServerError"
 components:
   responses:
+    BadRequest:
+      description: No audio was supplied, or the upload was malformed or incomplete.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          examples:
+            badRequest:
+              summary: Example missing audio error
+              value:
+                timestamp: "2026-07-14T03:45:30Z"
+                status: 400
+                error: "Bad Request"
+                message: "No audio file was supplied."
+                path: "/api/v1/transcribe"
+    ContentTooLarge:
+      description: The uploaded audio exceeds the 25 MB limit.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          examples:
+            contentTooLarge:
+              summary: Example oversized upload error
+              value:
+                timestamp: "2026-07-14T03:45:30Z"
+                status: 413
+                error: "Content Too Large"
+                message: "Audio file exceeds the 25 MB upload limit."
+                path: "/api/v1/transcribe"
+    UnsupportedMediaType:
+      description: The request body was not multipart/form-data.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          examples:
+            unsupportedMediaType:
+              summary: Example wrong media type error
+              value:
+                timestamp: "2026-07-14T03:45:30Z"
+                status: 415
+                error: "Unsupported Media Type"
+                message: "The request media type is not supported by this endpoint."
+                path: "/api/v1/transcribe"
+    BadGateway:
+      description: The upstream speech-to-text service returned an error.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          examples:
+            badGateway:
+              summary: Example provider failure
+              value:
+                timestamp: "2026-07-14T03:45:30Z"
+                status: 502
+                error: "Bad Gateway"
+                message: "Transcription provider is unavailable."
+                path: "/api/v1/transcribe"
+    GatewayTimeout:
+      description: The upstream speech-to-text service did not respond within the timeout.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          examples:
+            gatewayTimeout:
+              summary: Example provider timeout
+              value:
+                timestamp: "2026-07-14T03:45:30Z"
+                status: 504
+                error: "Gateway Timeout"
+                message: "Transcription provider did not respond in time."
+                path: "/api/v1/transcribe"
     InternalServerError:
       description: An unexpected server error occurred.
       content:
@@ -129,6 +262,73 @@ components:
                 message: "An unexpected server error occurred."
                 path: "/api/v1/admin/uptime"
   schemas:
+    TranscriptionResponse:
+      type: object
+      description: Transcribed speech and the token usage reported for the call.
+      additionalProperties: false
+      required:
+        - text
+        - usage
+      properties:
+        text:
+          type: string
+          description: The transcribed speech.
+          examples:
+            - "The quick brown fox jumps over the lazy dog."
+        usage:
+          description: Token usage for this transcription, or null if the provider reported none.
+          oneOf:
+            - $ref: "#/components/schemas/TokenUsage"
+            - type: "null"
+    TokenUsage:
+      type: object
+      description: >
+        Token usage for a single transcription, flattened from the provider's nested
+        reporting so the audio and text portions sit alongside the input total they
+        break down.
+      additionalProperties: false
+      required:
+        - inputTokens
+        - audioTokens
+        - textTokens
+        - outputTokens
+        - totalTokens
+      properties:
+        inputTokens:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Total tokens consumed by the submitted audio.
+          examples:
+            - 1200
+        audioTokens:
+          type: integer
+          format: int64
+          minimum: 0
+          description: The audio portion of inputTokens.
+          examples:
+            - 1184
+        textTokens:
+          type: integer
+          format: int64
+          minimum: 0
+          description: The text portion of inputTokens.
+          examples:
+            - 16
+        outputTokens:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Tokens produced in the transcript.
+          examples:
+            - 480
+        totalTokens:
+          type: integer
+          format: int64
+          minimum: 0
+          description: inputTokens plus outputTokens, as reported by the provider.
+          examples:
+            - 1680
     UptimeResponse:
       type: object
       description: Server uptime information calculated from UTC server start.
