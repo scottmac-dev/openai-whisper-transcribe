@@ -1,5 +1,7 @@
 # assignment1-api
 
+![The idle home screen: a microphone button reading "Click to start transcribing", with global token usage and server uptime in the header](screenshots/home.png)
+
 ## Overview
 
 This repository contains source code that implements a STT web interface that uses Open AI's gpt-4o-mini-transcribe model to produce transcriptions from audio file uploads.
@@ -106,6 +108,8 @@ Every failure on every endpoint is rendered as the spec's `ErrorResponse` object
 6. The reply is mapped into the internal `TranscriptionResult` record and its token counts added to the global totals
 7. The controller returns that record as JSON containing the transcript and its token usage
 8. The UI renders the transcript, with options to copy it, view its metadata, or start a new session
+
+![The transcript view: the returned text above Home, Copy, See metrics and New session buttons, with the status line reading "Transcription complete."](screenshots/result.png)
 
 ## Design Decisions
 - **Dependency injection** — controllers depend on the `TranscriptionService` interface rather than an implementation, so Spring wires the OpenAI service or local/test stub interchangeably
