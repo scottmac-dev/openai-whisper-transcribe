@@ -1,4 +1,4 @@
-package com.comp3011.assignment1.providers;
+package com.comp3011.assignment1.services;
 
 import com.comp3011.assignment1.responses.TranscriptionResult;
 

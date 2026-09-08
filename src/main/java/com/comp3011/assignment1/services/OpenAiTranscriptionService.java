@@ -1,4 +1,4 @@
-package com.comp3011.assignment1.providers;
+package com.comp3011.assignment1.services;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,6 +11,7 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClient;
 
+import com.comp3011.assignment1.providers.TokenCounterProvider;
 import com.comp3011.assignment1.responses.OpenAiInputTokenDetails;
 import com.comp3011.assignment1.responses.OpenAiTranscribeResponse;
 import com.comp3011.assignment1.responses.OpenAiUsage;
@@ -145,3 +146,4 @@ public class OpenAiTranscriptionService implements TranscriptionService {
     }
 
 }
+

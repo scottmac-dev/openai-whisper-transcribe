@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.comp3011.assignment1.providers.TranscriptionService;
+import com.comp3011.assignment1.services.TranscriptionService;
 import com.comp3011.assignment1.responses.ErrorResponse;
 import com.comp3011.assignment1.responses.TranscriptionResult;
 

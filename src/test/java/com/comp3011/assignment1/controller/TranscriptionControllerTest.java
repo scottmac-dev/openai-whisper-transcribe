@@ -20,7 +20,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClientResponseException;
 
-import com.comp3011.assignment1.providers.TranscriptionService;
+import com.comp3011.assignment1.services.TranscriptionService;
 import com.comp3011.assignment1.responses.TokenUsage;
 import com.comp3011.assignment1.responses.TranscriptionResult;
 import com.comp3011.assignment1.support.ErrorContract;
