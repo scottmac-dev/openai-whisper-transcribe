@@ -127,3 +127,36 @@ Every failure on every endpoint is rendered as the spec's `ErrorResponse` object
 - **Secure context required** — `getUserMedia` and the clipboard work only on `https://` or `localhost`, over plain HTTP recording and copying are disabled due to browser security
 - **25 MB upload limit** — OpenAI's own cap, enforced client-side, by `spring.servlet.multipart.max-file-size` and again in the controller, so all three must agree
 - **Configuration reference** — every config parameter (port, timeouts, upload limits, model, base URL) lives in `src/main/resources/application.properties`
+
+## Extra
+
+### Local Testing Alternative
+To exercise the full request path without spending OpenAI credits, [whisper-cpp-adapter](https://github.com/scottmac-dev/whisper-cpp-adapter)
+wraps whisper.cpp in a local Python endpoint matching the request and response shape this project
+expects. Point the application at it in `application.properties`:
+
+```properties
+openai.base-url=http://localhost:8000/v1/audio/transcriptions
+```
+
+`OPENAI_API_KEY` still needs any non-empty value which will be ignored: a blank key wires `LocalStubTranscriptionService`
+instead, so the adapter would never be called.
+
+### Extension Questions
+Answers to extension questions beyond project scope.
+
+Q1: How would you modify the YAML API specification to allow statistics to be gathered for different users?
+
+Add a session-scoped path, `/api/v1/session/stats`, reusing the existing `GlobalStatsResponse` schema, and leave `/api/v1/global/stats` as the true global total. The session cookie from Q2 would be declared in the YAML as a `securityScheme` of `type: apiKey, in: cookie`, with `Set-Cookie` documented under the page response's `headers`. In the backend, `TokenCounterProvider` holds a `ConcurrentHashMap<UUID, Counts>`. Atomic updates are still required, since one session can have several tabs uploading at once. This strategy also needs a TTL or eviction policy for expired/stale sessions.
+
+Q2: How could you distinguish between different users accessing the web page?
+
+A simple solution could be session cookies. On the first request to `GET /index.html` the server responds with `Set-Cookie: session_id=<uuid>; HttpOnly; SameSite=Strict; Path=/`, and the browser attaches `Cookie: session_id=<uuid>` to every later request for the backend to read. Spring Boot provides this out of the box through `HttpSession` and its `JSESSIONID`, and because the frontend is served from the same origin, `fetch()` sends the cookie automatically. It identifies a browser session rather than a person, and the value can be forged so its not a secure solution. It may be suitable for token statistics but not authentication.
+
+Q3: What is bad about exposing /api/v1/admin/shutdown and can you think of a safer way to implement this functionality in a cloud environment?
+
+Ideally a production deployment would not publicly expose a shutdown endpoint on the public internet and would handle shutdown via some sort of control-plane infrastructure which provides privileged admin access with appropriate permissions and authentication. In this case authenticated users would interact directly with the deploy system (systemd, docker, kubernetes, xyz cloud dashboard) issuing the command to the machine itself instead a exposed API endpoint.
+
+If a shutdown endpoint is required, some more secure alternatives could be:
+- Using strong authentication on shutdown route (Admin API keys)
+- Using a firewall or VPN which only permits access to that endpoint from trusted client, eg an AllowList
