@@ -296,6 +296,49 @@ function renderTranscript(data) {
     p.className = 'transcript-text';
     p.textContent = (data.text ?? '').trim();
     document.getElementById('transcript').replaceChildren(p);
+    resetCopyButton();
+}
+
+// ── Copy to clipboard ─────────────────────────────────────────────────
+// Single click copy of transcription for smooth UX
+const copyBtn = document.getElementById('copyBtn');
+const copyBtnLabel = document.getElementById('copyBtnLabel');
+const copyStatus = document.getElementById('copyStatus');
+let copyResetTimer = null;
+
+async function copyTranscript() {
+    const text = document.querySelector('#transcript .transcript-text')?.textContent ?? '';
+    if (!text) {
+        showCopyResult('Nothing to copy');
+        return;
+    }
+    // Copy API unavailable in insecure context, eg not localhost or https
+    if (!navigator.clipboard?.writeText) {
+        showCopyResult('Copy needs secure context');
+        return;
+    }
+    try {
+        await navigator.clipboard.writeText(text);
+        showCopyResult('Copied');
+    } catch {
+        // Denied permission, or a browser that refuses outside a user gesture it trusts.
+        showCopyResult('Copy failed');
+    }
+}
+
+function showCopyResult(message) {
+    clearTimeout(copyResetTimer);
+    copyBtnLabel.textContent = message;
+    copyBtn.setAttribute('aria-label', message);
+    copyStatus.textContent = message;
+    copyResetTimer = setTimeout(resetCopyButton, 2000);
+}
+
+function resetCopyButton() {
+    clearTimeout(copyResetTimer);
+    copyBtnLabel.textContent = 'Copy';
+    copyBtn.setAttribute('aria-label', 'Copy transcript to clipboard');
+    copyStatus.textContent = '';
 }
 
 // ── Usage view ────────────────────────────────────────────────────────
@@ -351,6 +394,7 @@ function renderUsage() {
 // Drops the last transcription and returns to the record screen
 function resetToIdle() {
     document.getElementById('transcript').replaceChildren();
+    resetCopyButton();
     usageList.replaceChildren();
     lastRequest = null;
     chunks = [];
@@ -500,6 +544,8 @@ document.getElementById('errorResetBtn').addEventListener('click', resetToIdle);
 
 document.getElementById('homeBtn').addEventListener('click', resetToIdle);
 document.getElementById('usageHomeBtn').addEventListener('click', resetToIdle);
+
+document.getElementById('copyBtn').addEventListener('click', copyTranscript);
 
 document.getElementById('usageBtn').addEventListener('click', () => {
     renderUsage();
