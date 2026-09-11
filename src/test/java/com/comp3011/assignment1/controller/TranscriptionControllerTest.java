@@ -99,6 +99,18 @@ class TranscriptionControllerTest {
     }
 
     @Test
+    @DisplayName("POST transcribe returns the 400 error body when the audio part has no filename")
+    void audioPartWithoutFilename() throws Exception {
+        // A form field rather than a file upload: bytes, but no filename to infer the
+        // container format from, so it never reaches the provider.
+        MockMultipartFile noFilename =
+                new MockMultipartFile("audio", "", "audio/webm", "fake audio".getBytes());
+
+        ErrorContract.assertErrorBody(mvc.perform(multipart(TRANSCRIBE).file(noFilename)),
+                HttpStatus.BAD_REQUEST, TRANSCRIBE);
+    }
+
+    @Test
     @DisplayName("POST transcribe returns the 413 error body when the audio exceeds 25 MB")
     void audioTooLarge() throws Exception {
 

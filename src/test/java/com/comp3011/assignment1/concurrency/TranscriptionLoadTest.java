@@ -85,10 +85,8 @@ class TranscriptionLoadTest {
                     .mapToObj(i -> pool.submit(() -> {
                         ready.countDown();
                         startGate.await();
-                        long started = System.nanoTime();
                         ResponseEntity<String> res = postAudio(client, audio);
-                        return new Attempt(res.getStatusCode().value(),
-                                (System.nanoTime() - started) / 1_000_000, res.getBody());
+                        return new Attempt(res.getStatusCode().value(), res.getBody());
                     }))
                     .toList();
 
@@ -122,7 +120,7 @@ class TranscriptionLoadTest {
     }
 
     /** Attempt meta data */
-    private record Attempt(int status, long millis, String body) {
+    private record Attempt(int status, String body) {
     }
 
     /** Mock REST client using SimpleClientHttpRequestFactory which opens a connection per exchange */
@@ -161,11 +159,5 @@ class TranscriptionLoadTest {
         byte[] bytes = new byte[AUDIO_BYTES];
         new Random(20250908L).nextBytes(bytes); // fixed seed, so every run sends identical bytes
         return bytes;
-    }
-
-    /** Nearest-rank percentile over an ascending array. */
-    private static long percentile(long[] sorted, double fraction) {
-        int rank = (int) Math.ceil(fraction * sorted.length) - 1;
-        return sorted[Math.clamp(rank, 0, sorted.length - 1)];
     }
 }

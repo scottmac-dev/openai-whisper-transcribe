@@ -50,12 +50,13 @@ either way:
 
 ```bash
 ./mvnw package
-docker build -t assignment1-api .
-docker run --rm -p 8080:8080 -e OPENAI_API_KEY <your_key>
+docker build -f assignment1.Dockerfile -t assignment1-api .
+docker run --rm -p 8080:8080 -e OPENAI_API_KEY assignment1-api
 ```
 
-`-e OPENAI_API_KEY` with no value forwards the key from the host environment, so the
-credential stays out of the image.
+`-f` is required because the build file is named `assignment1.Dockerfile` rather than
+`Dockerfile`. `-e OPENAI_API_KEY` with no value forwards the key from the host environment,
+so the credential stays out of the image.
 
 ### Running the tests
 

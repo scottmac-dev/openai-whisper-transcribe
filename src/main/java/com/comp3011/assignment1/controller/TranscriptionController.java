@@ -38,7 +38,7 @@ public class TranscriptionController {
      * token usage. consumes= makes the media type part of the mapping, so a non-multipart
      * body is rejected as 415 before this method runs.
      *
-     * 200 transcribed, 400 no audio, 413 too large, 415 wrong media type,
+     * 200 transcribed, 400 no audio or no filename, 413 too large, 415 wrong media type,
      * 502 provider error, 504 provider timeout, 500 unexpected server error.
      */
     @PostMapping(value = "/transcribe", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -51,6 +51,13 @@ public class TranscriptionController {
                     "No audio file was supplied.", req.getRequestURI());
         }
 
+        // Validate filename provider, required to infer format
+        String filename = audio.getOriginalFilename();
+        if (filename == null || filename.isBlank()) {
+            return ErrorResponse.entity(HttpStatus.BAD_REQUEST,
+                    "The audio upload was malformed or incomplete.", req.getRequestURI());
+        }
+
         // File too large
         if (audio.getSize() > TranscriptionService.MAX_FILE_SIZE) {
             return ErrorResponse.entity(HttpStatus.CONTENT_TOO_LARGE,
@@ -59,8 +66,7 @@ public class TranscriptionController {
 
         // getBytes() unwraps the servlet type here so the service layer only sees bytes.
         // ApiExceptionHandler renders the 502, 504 and 500 cases in the documented schema.
-        TranscriptionResult res =
-                transcriptionService.transcribe(audio.getBytes(), audio.getOriginalFilename());
+        TranscriptionResult res = transcriptionService.transcribe(audio.getBytes(), filename);
         return ResponseEntity.ok(res);
     }
 }

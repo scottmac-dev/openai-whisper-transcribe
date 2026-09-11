@@ -2,7 +2,7 @@
 
 ## Overview
 
-21 tests across 8 classes, using JUnit 5, Spring Boot Test, AssertJ and Mockito. 
+22 tests across 8 classes, using JUnit 5, Spring Boot Test, AssertJ and Mockito. 
 
 They aim to verify 4 things:
 - the API contract holds on every documented status 
@@ -21,7 +21,7 @@ The suite needs no `OPENAI_API_KEY` and makes no network calls.
 ./mvnw test                                    # mvnw.cmd test on Windows
 ```
 
-Successful run will end with `Tests run: 21, Failures: 0, Errors: 0` and `BUILD SUCCESS`.
+Successful run will end with `Tests run: 22, Failures: 0, Errors: 0` and `BUILD SUCCESS`.
 
 **Two `ERROR` stack traces appear mid-run and are expected.** `TranscriptionControllerTest`
 injects a `ResourceAccessException` and a `RestClientResponseException` to simulate the 504 and
